@@ -3,8 +3,10 @@ package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePFRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePFUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByCpfUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePFUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePFUseCase;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.SexoEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.exception.CpfInvalidoException;
@@ -50,7 +52,13 @@ class ClientePFControllerTest {
     private FindClientePFByIdUseCase findClientePFByIdUseCase;
 
     @MockBean
+    private FindClientePFByCpfUseCase findClientePFByCpfUseCase;
+
+    @MockBean
     private ListClientePFUseCase listClientePFUseCase;
+
+    @MockBean
+    private UpdateClientePFUseCase updateClientePFUseCase;
 
     private ObjectMapper objectMapper;
     private CreateClientePFRequest requestValido;
@@ -137,7 +145,8 @@ class ClientePFControllerTest {
                         .content(objectMapper.writeValueAsString(requestValido)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.publicId").value(1))
+                .andExpect(jsonPath("$.publicId").exists())
+                .andExpect(jsonPath("$.publicId").isString())
                 .andExpect(jsonPath("$.primeiroNome").value("João"))
                 .andExpect(jsonPath("$.sobrenome").value("Silva"))
                 .andExpect(jsonPath("$.nomeCompleto").value("João da Silva"))

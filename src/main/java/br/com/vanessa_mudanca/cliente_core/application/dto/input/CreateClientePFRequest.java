@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 /**
  * Record para criação de Cliente Pessoa Física.
@@ -60,7 +61,7 @@ public record CreateClientePFRequest(
 
         String utmMedium,
 
-        Long clienteIndicadorId,
+        UUID clienteIndicadorId,
 
         String observacoes
 ) {

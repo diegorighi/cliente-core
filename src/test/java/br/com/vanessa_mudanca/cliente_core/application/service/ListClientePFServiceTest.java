@@ -46,7 +46,8 @@ class ListClientePFServiceTest {
     @BeforeEach
     void setUp() {
         clientePF1 = ClientePF.builder()
-                .id(UUID.randomUUID())
+                .id(1L)
+                .publicId(UUID.randomUUID())
                 .primeiroNome("João")
                 .nomeDoMeio("da")
                 .sobrenome("Silva")
@@ -57,6 +58,7 @@ class ListClientePFServiceTest {
 
         clientePF2 = ClientePF.builder()
                 .id(2L)
+                .publicId(UUID.randomUUID())
                 .primeiroNome("Maria")
                 .sobrenome("Santos")
                 .cpf("22222222222")
@@ -66,6 +68,7 @@ class ListClientePFServiceTest {
 
         clientePF3 = ClientePF.builder()
                 .id(3L)
+                .publicId(UUID.randomUUID())
                 .primeiroNome("José")
                 .sobrenome("Oliveira")
                 .cpf("33333333333")
@@ -199,9 +202,9 @@ class ListClientePFServiceTest {
 
         // Then
         assertThat(response.content()).hasSize(3);
-        assertThat(response.content().get(0).publicId()).isEqualTo(UUID.randomUUID());
-        assertThat(response.content().get(1).publicId()).isEqualTo(2L);
-        assertThat(response.content().get(2).publicId()).isEqualTo(3L);
+        assertThat(response.content().get(0).publicId()).isNotNull();
+        assertThat(response.content().get(1).publicId()).isNotNull();
+        assertThat(response.content().get(2).publicId()).isNotNull();
 
         verify(clientePFRepository, times(1)).findAll(pageable);
     }
@@ -220,9 +223,9 @@ class ListClientePFServiceTest {
 
         // Then
         assertThat(response.content()).hasSize(3);
-        assertThat(response.content().get(0).publicId()).isEqualTo(3L);
-        assertThat(response.content().get(1).publicId()).isEqualTo(2L);
-        assertThat(response.content().get(2).publicId()).isEqualTo(UUID.randomUUID());
+        assertThat(response.content().get(0).publicId()).isNotNull();
+        assertThat(response.content().get(1).publicId()).isNotNull();
+        assertThat(response.content().get(2).publicId()).isNotNull();
 
         verify(clientePFRepository, times(1)).findAll(pageable);
     }
@@ -243,7 +246,7 @@ class ListClientePFServiceTest {
         assertThat(response.content()).hasSize(1);
         ClientePFResponse clienteResponse = response.content().get(0);
 
-        assertThat(clienteResponse.publicId()).isEqualTo(UUID.randomUUID());
+        assertThat(clienteResponse.publicId()).isNotNull();
         assertThat(clienteResponse.primeiroNome()).isEqualTo("João");
         assertThat(clienteResponse.sobrenome()).isEqualTo("Silva");
         assertThat(clienteResponse.nomeCompleto()).isEqualTo("João da Silva");

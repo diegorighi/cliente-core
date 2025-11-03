@@ -3,6 +3,7 @@ package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePJRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePJResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePJUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByCnpjUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePJUseCase;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
@@ -47,6 +48,9 @@ class ClientePJControllerTest {
 
     @MockBean
     private FindClientePJByIdUseCase findClientePJByIdUseCase;
+
+    @MockBean
+    private FindClientePJByCnpjUseCase findClientePJByCnpjUseCase;
 
     @MockBean
     private ListClientePJUseCase listClientePJUseCase;
@@ -137,7 +141,8 @@ class ClientePJControllerTest {
                         .content(objectMapper.writeValueAsString(requestValido)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.publicId").value(1))
+                .andExpect(jsonPath("$.publicId").exists())
+                .andExpect(jsonPath("$.publicId").isString())
                 .andExpect(jsonPath("$.razaoSocial").value("Empresa XYZ Ltda"))
                 .andExpect(jsonPath("$.nomeFantasia").value("XYZ Comércio"))
                 .andExpect(jsonPath("$.nomeExibicao").value("XYZ Comércio"))

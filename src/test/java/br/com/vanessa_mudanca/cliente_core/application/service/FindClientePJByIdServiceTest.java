@@ -37,11 +37,14 @@ class FindClientePJByIdServiceTest {
     private FindClientePJByIdService service;
 
     private ClientePJ clientePJ;
+    private UUID publicId;
 
     @BeforeEach
     void setUp() {
+        publicId = UUID.randomUUID();
         clientePJ = ClientePJ.builder()
-                .id(UUID.randomUUID())
+                .id(1L)
+                .publicId(publicId)
                 .razaoSocial("Empresa XYZ Ltda")
                 .nomeFantasia("XYZ Transportes")
                 .cnpj("12345678000199")
@@ -58,14 +61,14 @@ class FindClientePJByIdServiceTest {
     @DisplayName("Deve retornar ClientePJResponse quando cliente existe")
     void deveRetornarClientePJResponse_QuandoClienteExiste() {
         // Given
-        when(clientePJRepository.findByPublicId(UUID.randomUUID())).thenReturn(Optional.of(clientePJ));
+        when(clientePJRepository.findByPublicId(publicId)).thenReturn(Optional.of(clientePJ));
 
         // When
-        ClientePJResponse response = service.findByPublicId(UUID.randomUUID());
+        ClientePJResponse response = service.findByPublicId(publicId);
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.publicId()).isEqualTo(UUID.randomUUID());
+        assertThat(response.publicId()).isEqualTo(publicId);
         assertThat(response.razaoSocial()).isEqualTo("Empresa XYZ Ltda");
         assertThat(response.nomeFantasia()).isEqualTo("XYZ Transportes");
         assertThat(response.nomeExibicao()).isEqualTo("XYZ Transportes");
@@ -75,45 +78,48 @@ class FindClientePJByIdServiceTest {
         assertThat(response.capitalSocial()).isEqualByComparingTo(new BigDecimal("100000.00"));
         assertThat(response.dataAbertura()).isEqualTo(LocalDate.of(2020, 1, 15));
 
-        verify(clientePJRepository, times(1)).findByPublicId(UUID.randomUUID());
+        verify(clientePJRepository, times(1)).findByPublicId(publicId);
     }
 
     @Test
     @DisplayName("Deve lançar ClienteNaoEncontradoException quando cliente não existe")
     void deveLancarClienteNaoEncontradoException_QuandoClienteNaoExiste() {
         // Given
-        when(clientePJRepository.findByPublicId(anyLong())).thenReturn(Optional.empty());
+        UUID idInexistente = UUID.randomUUID();
+        when(clientePJRepository.findByPublicId(idInexistente)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> service.findByPublicId(999L))
+        assertThatThrownBy(() -> service.findByPublicId(idInexistente))
                 .isInstanceOf(ClienteNaoEncontradoException.class)
-                .hasMessageContaining("Cliente com ID '999' não encontrado");
+                .hasMessageContaining("não encontrado");
 
-        verify(clientePJRepository, times(1)).findByPublicId(999L);
+        verify(clientePJRepository, times(1)).findByPublicId(idInexistente);
     }
 
     @Test
     @DisplayName("Deve retornar nomeExibicao igual a nomeFantasia quando disponível")
     void deveRetornarNomeExibicaoIgualNomeFantasia_QuandoDisponivel() {
         // Given
-        when(clientePJRepository.findByPublicId(UUID.randomUUID())).thenReturn(Optional.of(clientePJ));
+        when(clientePJRepository.findByPublicId(publicId)).thenReturn(Optional.of(clientePJ));
 
         // When
-        ClientePJResponse response = service.findByPublicId(UUID.randomUUID());
+        ClientePJResponse response = service.findByPublicId(publicId);
 
         // Then
         assertThat(response.nomeExibicao()).isEqualTo("XYZ Transportes");
         assertThat(response.nomeExibicao()).isEqualTo(response.nomeFantasia());
 
-        verify(clientePJRepository, times(1)).findByPublicId(UUID.randomUUID());
+        verify(clientePJRepository, times(1)).findByPublicId(publicId);
     }
 
     @Test
     @DisplayName("Deve retornar nomeExibicao igual a razaoSocial quando nomeFantasia é nulo")
     void deveRetornarNomeExibicaoIgualRazaoSocial_QuandoNomeFantasiaNulo() {
         // Given
+        UUID publicId2 = UUID.randomUUID();
         ClientePJ clienteSemNomeFantasia = ClientePJ.builder()
                 .id(2L)
+                .publicId(publicId2)
                 .razaoSocial("Empresa ABC Ltda")
                 .nomeFantasia(null)
                 .cnpj("98765432000188")
@@ -122,24 +128,26 @@ class FindClientePJByIdServiceTest {
                 .dataAbertura(LocalDate.of(2019, 5, 20))
                 .build();
 
-        when(clientePJRepository.findByPublicId(2L)).thenReturn(Optional.of(clienteSemNomeFantasia));
+        when(clientePJRepository.findByPublicId(publicId2)).thenReturn(Optional.of(clienteSemNomeFantasia));
 
         // When
-        ClientePJResponse response = service.findByPublicId(2L);
+        ClientePJResponse response = service.findByPublicId(publicId2);
 
         // Then
         assertThat(response.nomeExibicao()).isEqualTo("Empresa ABC Ltda");
         assertThat(response.nomeExibicao()).isEqualTo(response.razaoSocial());
 
-        verify(clientePJRepository, times(1)).findByPublicId(2L);
+        verify(clientePJRepository, times(1)).findByPublicId(publicId2);
     }
 
     @Test
     @DisplayName("Deve retornar capital social com precisão decimal")
     void deveRetornarCapitalSocialComPrecisaoDecimal() {
         // Given
+        UUID publicId3 = UUID.randomUUID();
         ClientePJ clienteComCapitalEspecifico = ClientePJ.builder()
                 .id(3L)
+                .publicId(publicId3)
                 .razaoSocial("Empresa DEF Ltda")
                 .nomeFantasia("DEF Soluções")
                 .cnpj("11122233000144")
@@ -148,15 +156,15 @@ class FindClientePJByIdServiceTest {
                 .dataAbertura(LocalDate.of(2021, 3, 10))
                 .build();
 
-        when(clientePJRepository.findByPublicId(3L)).thenReturn(Optional.of(clienteComCapitalEspecifico));
+        when(clientePJRepository.findByPublicId(publicId3)).thenReturn(Optional.of(clienteComCapitalEspecifico));
 
         // When
-        ClientePJResponse response = service.findByPublicId(3L);
+        ClientePJResponse response = service.findByPublicId(publicId3);
 
         // Then
         assertThat(response.capitalSocial())
                 .isEqualByComparingTo(new BigDecimal("250000.50"));
 
-        verify(clientePJRepository, times(1)).findByPublicId(3L);
+        verify(clientePJRepository, times(1)).findByPublicId(publicId3);
     }
 }

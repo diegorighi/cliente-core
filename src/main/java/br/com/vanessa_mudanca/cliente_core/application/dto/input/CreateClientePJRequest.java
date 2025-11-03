@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 /**
  * Record para criação de Cliente Pessoa Jurídica.
@@ -59,7 +60,7 @@ public record CreateClientePJRequest(
 
         String utmMedium,
 
-        Long clienteIndicadorId,
+        UUID clienteIndicadorId,
 
         String observacoes
 ) {

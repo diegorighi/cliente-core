@@ -75,4 +75,69 @@ public class ClientePF extends Cliente {
         }
         return LocalDate.now().getYear() - dataNascimento.getYear();
     }
+
+    // ========== MÉTODOS COMPORTAMENTAIS (Tell, Don't Ask) ==========
+
+    /**
+     * Atualiza dados básicos do cliente PF.
+     * CAMPOS IMUTÁVEIS (não incluídos): cpf, dataNascimento
+     */
+    public void atualizarDadosBasicos(
+            String novoPrimeiroNome,
+            String novoNomeDoMeio,
+            String novoSobrenome,
+            String novoRg,
+            SexoEnum novoSexo,
+            String novoEmail
+    ) {
+        if (novoPrimeiroNome != null) {
+            this.primeiroNome = novoPrimeiroNome;
+        }
+        if (novoNomeDoMeio != null) {
+            this.nomeDoMeio = novoNomeDoMeio;
+        }
+        if (novoSobrenome != null) {
+            this.sobrenome = novoSobrenome;
+        }
+        if (novoRg != null) {
+            this.rg = novoRg;
+        }
+        if (novoSexo != null) {
+            this.sexo = novoSexo;
+        }
+        if (novoEmail != null) {
+            this.setEmail(novoEmail); // Email está no Cliente (superclass)
+        }
+    }
+
+    /**
+     * Atualiza dados complementares do cliente PF.
+     */
+    public void atualizarDadosComplementares(
+            String novoNomeMae,
+            String novoNomePai,
+            String novoEstadoCivil,
+            String novaProfissao,
+            String novaNacionalidade,
+            String novaNaturalidade
+    ) {
+        if (novoNomeMae != null) {
+            this.nomeMae = novoNomeMae;
+        }
+        if (novoNomePai != null) {
+            this.nomePai = novoNomePai;
+        }
+        if (novoEstadoCivil != null) {
+            this.estadoCivil = novoEstadoCivil;
+        }
+        if (novaProfissao != null) {
+            this.profissao = novaProfissao;
+        }
+        if (novaNacionalidade != null) {
+            this.nacionalidade = novaNacionalidade;
+        }
+        if (novaNaturalidade != null) {
+            this.naturalidade = novaNaturalidade;
+        }
+    }
 }

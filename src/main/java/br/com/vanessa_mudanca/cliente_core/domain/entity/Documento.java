@@ -53,6 +53,10 @@ public class Documento {
     @Builder.Default
     private Boolean ativo = true;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    private Cliente cliente;
+
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao;
 
@@ -79,5 +83,61 @@ public class Documento {
             return false;
         }
         return LocalDate.now().isAfter(dataValidade);
+    }
+
+    // ========== MÉTODOS COMPORTAMENTAIS (Tell, Don't Ask) ==========
+
+    /**
+     * Atualiza datas de emissão e validade do documento.
+     * COMPORTAMENTO:
+     * - Recalcula status se documento expirou ou foi renovado
+     * - Registra timestamp de atualização
+     */
+    public void atualizarDatasEEmissor(
+            LocalDate novaDataEmissao,
+            LocalDate novaDataValidade,
+            String novoOrgaoEmissor
+    ) {
+        if (novaDataEmissao != null) {
+            this.dataEmissao = novaDataEmissao;
+        }
+
+        if (novaDataValidade != null) {
+            this.dataValidade = novaDataValidade;
+
+            // Recalcular status baseado na nova data
+            if (isExpirado()) {
+                this.statusDocumento = StatusDocumentoEnum.EXPIRADO;
+            } else if (this.statusDocumento == StatusDocumentoEnum.EXPIRADO) {
+                // Documento foi renovado
+                this.statusDocumento = StatusDocumentoEnum.AGUARDANDO_VERIFICACAO;
+            }
+        }
+
+        if (novoOrgaoEmissor != null && !novoOrgaoEmissor.isBlank()) {
+            this.orgaoEmissor = novoOrgaoEmissor;
+        }
+    }
+
+    /**
+     * Atualiza observações do documento.
+     */
+    public void atualizarObservacoes(String novasObservacoes) {
+        this.observacoes = novasObservacoes;
+    }
+
+    /**
+     * Marca este documento como principal.
+     * NOTA: Service deve garantir que apenas 1 documento é principal por cliente.
+     */
+    public void marcarComoPrincipal() {
+        this.documentoPrincipal = true;
+    }
+
+    /**
+     * Remove flag de documento principal.
+     */
+    public void removerFlagPrincipal() {
+        this.documentoPrincipal = false;
     }
 }

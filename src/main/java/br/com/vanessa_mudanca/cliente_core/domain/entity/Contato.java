@@ -41,6 +41,10 @@ public class Contato {
     @Builder.Default
     private Boolean ativo = true;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    private Cliente cliente;
+
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao;
 
@@ -56,5 +60,58 @@ public class Contato {
     @PreUpdate
     protected void onUpdate() {
         this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    // ========== MÉTODOS COMPORTAMENTAIS (Tell, Don't Ask) ==========
+
+    /**
+     * Atualiza valor do contato.
+     * COMPORTAMENTO: Invalida verificação se valor mudou.
+     */
+    public void atualizarValor(String novoValor) {
+        if (!this.valor.equals(novoValor)) {
+            this.valor = novoValor;
+            this.verificado = false; // Precisa re-verificar
+        }
+    }
+
+    /**
+     * Atualiza tipo do contato.
+     * COMPORTAMENTO: Invalida verificação se tipo mudou.
+     */
+    public void atualizarTipo(TipoContatoEnum novoTipo) {
+        if (this.tipoContato != novoTipo) {
+            this.tipoContato = novoTipo;
+            this.verificado = false; // Mudou tipo, re-verificar
+        }
+    }
+
+    /**
+     * Atualiza observações do contato.
+     */
+    public void atualizarObservacoes(String novasObservacoes) {
+        this.observacoes = novasObservacoes;
+    }
+
+    /**
+     * Marca este contato como principal.
+     * NOTA: Service deve garantir que apenas 1 contato é principal por cliente.
+     */
+    public void marcarComoPrincipal() {
+        this.contatoPrincipal = true;
+    }
+
+    /**
+     * Remove flag de contato principal.
+     */
+    public void removerFlagPrincipal() {
+        this.contatoPrincipal = false;
+    }
+
+    /**
+     * Marca contato como verificado.
+     */
+    public void marcarComoVerificado() {
+        this.verificado = true;
     }
 }

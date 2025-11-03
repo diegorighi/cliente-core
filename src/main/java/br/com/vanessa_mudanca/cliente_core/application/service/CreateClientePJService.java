@@ -15,6 +15,8 @@ import br.com.vanessa_mudanca.cliente_core.domain.validator.DocumentoValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Service para criação de Cliente Pessoa Jurídica.
  * Implementa o Use Case de criação com todas as validações necessárias.
@@ -68,12 +70,12 @@ public class CreateClientePJService implements CreateClientePJUseCase {
         }
     }
 
-    private Cliente buscarClienteIndicador(Long clienteIndicadorId) {
+    private Cliente buscarClienteIndicador(UUID clienteIndicadorId) {
         if (clienteIndicadorId == null) {
             return null;
         }
 
-        return clienteRepository.findById(clienteIndicadorId)
+        return clienteRepository.findByPublicId(clienteIndicadorId)
                 .orElseThrow(() -> new ClienteIndicadorNaoEncontradoException(clienteIndicadorId));
     }
 }

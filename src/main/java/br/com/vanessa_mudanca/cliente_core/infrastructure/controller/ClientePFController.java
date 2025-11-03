@@ -1,12 +1,14 @@
 package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePFRequest;
+import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePFRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.PageResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePFUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByCpfUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePFUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePFUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -34,16 +36,19 @@ import java.util.UUID;
 public class ClientePFController {
 
     private final CreateClientePFUseCase createClientePFUseCase;
+    private final UpdateClientePFUseCase updateClientePFUseCase;
     private final FindClientePFByIdUseCase findClientePFByIdUseCase;
     private final FindClientePFByCpfUseCase findClientePFByCpfUseCase;
     private final ListClientePFUseCase listClientePFUseCase;
 
     public ClientePFController(
             CreateClientePFUseCase createClientePFUseCase,
+            UpdateClientePFUseCase updateClientePFUseCase,
             FindClientePFByIdUseCase findClientePFByIdUseCase,
             FindClientePFByCpfUseCase findClientePFByCpfUseCase,
             ListClientePFUseCase listClientePFUseCase) {
         this.createClientePFUseCase = createClientePFUseCase;
+        this.updateClientePFUseCase = updateClientePFUseCase;
         this.findClientePFByIdUseCase = findClientePFByIdUseCase;
         this.findClientePFByCpfUseCase = findClientePFByCpfUseCase;
         this.listClientePFUseCase = listClientePFUseCase;
@@ -106,6 +111,48 @@ public class ClientePFController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
 
         PageResponse<ClientePFResponse> response = listClientePFUseCase.findAll(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{publicId}")
+    @Operation(
+            summary = "Atualizar cliente PF",
+            description = "Atualiza dados do cliente PF e suas entidades relacionadas (documentos, endereços, contatos). " +
+                    "Permite atualização seletiva: apenas os campos presentes no request serão atualizados."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "404", description = "Cliente, documento, endereço ou contato não encontrado"),
+            @ApiResponse(responseCode = "409", description = "Conflito ao tentar marcar mais de um item como principal")
+    })
+    public ResponseEntity<ClientePFResponse> atualizar(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            @Valid @RequestBody UpdateClientePFRequest request) {
+
+        // Garantir que o publicId do path seja usado (segurança)
+        UpdateClientePFRequest requestComId = UpdateClientePFRequest.builder()
+                .publicId(publicId)
+                .primeiroNome(request.primeiroNome())
+                .nomeDoMeio(request.nomeDoMeio())
+                .sobrenome(request.sobrenome())
+                .rg(request.rg())
+                .sexo(request.sexo())
+                .email(request.email())
+                .nomeMae(request.nomeMae())
+                .nomePai(request.nomePai())
+                .estadoCivil(request.estadoCivil())
+                .profissao(request.profissao())
+                .nacionalidade(request.nacionalidade())
+                .naturalidade(request.naturalidade())
+                .tipoCliente(request.tipoCliente())
+                .observacoes(request.observacoes())
+                .documentos(request.documentos())
+                .enderecos(request.enderecos())
+                .contatos(request.contatos())
+                .build();
+
+        ClientePFResponse response = updateClientePFUseCase.atualizar(requestComId);
         return ResponseEntity.ok(response);
     }
 }

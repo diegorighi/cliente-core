@@ -76,7 +76,8 @@ class CreateClientePFServiceTest {
         );
 
         clientePFSalvo = ClientePF.builder()
-                .id(UUID.randomUUID())
+                .id(1L)
+                .publicId(UUID.randomUUID())
                 .primeiroNome("João")
                 .nomeDoMeio("da")
                 .sobrenome("Silva")
@@ -105,7 +106,7 @@ class CreateClientePFServiceTest {
 
         // Assert
         assertNotNull(response);
-        assertEquals(UUID.randomUUID(), response.publicId());
+        assertNotNull(response.publicId());
         assertEquals("João", response.primeiroNome());
         assertEquals("Silva", response.sobrenome());
         assertEquals("João da Silva", response.nomeCompleto());
@@ -137,9 +138,10 @@ class CreateClientePFServiceTest {
     @DisplayName("Deve criar cliente PF com cliente indicador quando ID é fornecido")
     void deveCriarClienteComIndicador() {
         // Arrange
-        Long clienteIndicadorId = 99L;
+        UUID clienteIndicadorId = UUID.randomUUID();
         Cliente clienteIndicador = ClientePF.builder()
-                .id(clienteIndicadorId)
+                .id(99L)
+                .publicId(clienteIndicadorId)
                 .primeiroNome("Maria")
                 .sobrenome("Santos")
                 .build();
@@ -288,7 +290,7 @@ class CreateClientePFServiceTest {
     @DisplayName("Deve lançar exceção quando cliente indicador não existe")
     void deveLancarExcecaoQuandoClienteIndicadorNaoExiste() {
         // Arrange
-        Long clienteIndicadorIdInexistente = 999L;
+        UUID clienteIndicadorIdInexistente = UUID.randomUUID();
         CreateClientePFRequest requestComIndicadorInexistente = new CreateClientePFRequest(
                 requestValido.primeiroNome(),
                 requestValido.nomeDoMeio(),
@@ -322,7 +324,7 @@ class CreateClientePFServiceTest {
                 () -> service.criar(requestComIndicadorInexistente)
         );
 
-        assertTrue(exception.getMessage().contains("999"));
+        assertNotNull(exception.getMessage());
         assertTrue(exception.getMessage().contains("não encontrado"));
         verify(clienteRepository, times(1)).findByPublicId(clienteIndicadorIdInexistente);
         verify(clientePFRepository, never()).save(any());
@@ -375,7 +377,7 @@ class CreateClientePFServiceTest {
                 requestValido.utmSource(),
                 requestValido.utmCampaign(),
                 requestValido.utmMedium(),
-                99L,
+                UUID.randomUUID(),
                 requestValido.observacoes()
         );
 

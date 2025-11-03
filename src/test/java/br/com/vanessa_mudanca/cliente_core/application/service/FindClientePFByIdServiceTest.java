@@ -38,10 +38,14 @@ class FindClientePFByIdServiceTest {
 
     private ClientePF clientePF;
 
+    private UUID publicId;
+
     @BeforeEach
     void setUp() {
+        publicId = UUID.randomUUID();
         clientePF = ClientePF.builder()
-                .id(UUID.randomUUID())
+                .id(1L)
+                .publicId(publicId)
                 .primeiroNome("João")
                 .nomeDoMeio("da")
                 .sobrenome("Silva")
@@ -62,14 +66,14 @@ class FindClientePFByIdServiceTest {
     @DisplayName("Deve retornar ClientePFResponse quando cliente existe")
     void deveRetornarClientePFResponse_QuandoClienteExiste() {
         // Given
-        when(clientePFRepository.findByPublicId(UUID.randomUUID())).thenReturn(Optional.of(clientePF));
+        when(clientePFRepository.findByPublicId(publicId)).thenReturn(Optional.of(clientePF));
 
         // When
-        ClientePFResponse response = service.findByPublicId(UUID.randomUUID());
+        ClientePFResponse response = service.findByPublicId(publicId);
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.publicId()).isEqualTo(UUID.randomUUID());
+        assertThat(response.publicId()).isEqualTo(publicId);
         assertThat(response.primeiroNome()).isEqualTo("João");
         assertThat(response.nomeDoMeio()).isEqualTo("da");
         assertThat(response.sobrenome()).isEqualTo("Silva");
@@ -78,58 +82,61 @@ class FindClientePFByIdServiceTest {
         assertThat(response.dataNascimento()).isEqualTo(LocalDate.of(1990, 5, 15));
         assertThat(response.sexo()).isEqualTo(SexoEnum.MASCULINO);
 
-        verify(clientePFRepository, times(1)).findByPublicId(UUID.randomUUID());
+        verify(clientePFRepository, times(1)).findByPublicId(publicId);
     }
 
     @Test
     @DisplayName("Deve lançar ClienteNaoEncontradoException quando cliente não existe")
     void deveLancarClienteNaoEncontradoException_QuandoClienteNaoExiste() {
         // Given
-        when(clientePFRepository.findByPublicId(anyLong())).thenReturn(Optional.empty());
+        UUID idInexistente = UUID.randomUUID();
+        when(clientePFRepository.findByPublicId(idInexistente)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> service.findByPublicId(999L))
+        assertThatThrownBy(() -> service.findByPublicId(idInexistente))
                 .isInstanceOf(ClienteNaoEncontradoException.class)
-                .hasMessageContaining("Cliente com ID '999' não encontrado");
+                .hasMessageContaining("não encontrado");
 
-        verify(clientePFRepository, times(1)).findByPublicId(999L);
+        verify(clientePFRepository, times(1)).findByPublicId(idInexistente);
     }
 
     @Test
     @DisplayName("Deve calcular idade corretamente a partir da data de nascimento")
     void deveCalcularIdadeCorretamente() {
         // Given
-        when(clientePFRepository.findByPublicId(UUID.randomUUID())).thenReturn(Optional.of(clientePF));
+        when(clientePFRepository.findByPublicId(publicId)).thenReturn(Optional.of(clientePF));
 
         // When
-        ClientePFResponse response = service.findByPublicId(UUID.randomUUID());
+        ClientePFResponse response = service.findByPublicId(publicId);
 
         // Then
         assertThat(response.idade()).isGreaterThanOrEqualTo(33); // Cliente nasceu em 1990
-        verify(clientePFRepository, times(1)).findByPublicId(UUID.randomUUID());
+        verify(clientePFRepository, times(1)).findByPublicId(publicId);
     }
 
     @Test
     @DisplayName("Deve retornar nome completo corretamente")
     void deveRetornarNomeCompletoCorretamente() {
         // Given
-        when(clientePFRepository.findByPublicId(UUID.randomUUID())).thenReturn(Optional.of(clientePF));
+        when(clientePFRepository.findByPublicId(publicId)).thenReturn(Optional.of(clientePF));
 
         // When
-        ClientePFResponse response = service.findByPublicId(UUID.randomUUID());
+        ClientePFResponse response = service.findByPublicId(publicId);
 
         // Then
         assertThat(response.nomeCompleto()).isEqualTo("João da Silva");
 
-        verify(clientePFRepository, times(1)).findByPublicId(UUID.randomUUID());
+        verify(clientePFRepository, times(1)).findByPublicId(publicId);
     }
 
     @Test
     @DisplayName("Deve retornar nome completo sem nome do meio quando não informado")
     void deveRetornarNomeCompletoSemNomeDoMeio() {
         // Given
+        UUID publicId2 = UUID.randomUUID();
         ClientePF clienteSemNomeDoMeio = ClientePF.builder()
                 .id(2L)
+                .publicId(publicId2)
                 .primeiroNome("Maria")
                 .sobrenome("Santos")
                 .cpf("98765432100")
@@ -137,35 +144,37 @@ class FindClientePFByIdServiceTest {
                 .sexo(SexoEnum.FEMININO)
                 .build();
 
-        when(clientePFRepository.findByPublicId(2L)).thenReturn(Optional.of(clienteSemNomeDoMeio));
+        when(clientePFRepository.findByPublicId(publicId2)).thenReturn(Optional.of(clienteSemNomeDoMeio));
 
         // When
-        ClientePFResponse response = service.findByPublicId(2L);
+        ClientePFResponse response = service.findByPublicId(publicId2);
 
         // Then
         assertThat(response.nomeCompleto()).isEqualTo("Maria Santos");
-        verify(clientePFRepository, times(1)).findByPublicId(2L);
+        verify(clientePFRepository, times(1)).findByPublicId(publicId2);
     }
 
     @Test
     @DisplayName("Deve retornar idade nula quando data de nascimento não informada")
     void deveRetornarIdadeNula_QuandoDataNascimentoNaoInformada() {
         // Given
+        UUID publicId3 = UUID.randomUUID();
         ClientePF clienteSemDataNascimento = ClientePF.builder()
                 .id(3L)
+                .publicId(publicId3)
                 .primeiroNome("José")
                 .sobrenome("Oliveira")
                 .cpf("11122233344")
                 .sexo(SexoEnum.MASCULINO)
                 .build();
 
-        when(clientePFRepository.findByPublicId(3L)).thenReturn(Optional.of(clienteSemDataNascimento));
+        when(clientePFRepository.findByPublicId(publicId3)).thenReturn(Optional.of(clienteSemDataNascimento));
 
         // When
-        ClientePFResponse response = service.findByPublicId(3L);
+        ClientePFResponse response = service.findByPublicId(publicId3);
 
         // Then
         assertThat(response.idade()).isNull();
-        verify(clientePFRepository, times(1)).findByPublicId(3L);
+        verify(clientePFRepository, times(1)).findByPublicId(publicId3);
     }
 }

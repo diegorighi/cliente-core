@@ -58,6 +58,10 @@ public class Endereco {
     @Builder.Default
     private Boolean ativo = true;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    private Cliente cliente;
+
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao;
 
@@ -73,5 +77,47 @@ public class Endereco {
     @PreUpdate
     protected void onUpdate() {
         this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    // ========== MÉTODOS COMPORTAMENTAIS (Tell, Don't Ask) ==========
+
+    /**
+     * Atualiza todos os dados do endereço.
+     */
+    public void atualizarDadosEndereco(
+            String novoCep,
+            String novoLogradouro,
+            String novoNumero,
+            String novoComplemento,
+            String novoBairro,
+            String novaCidade,
+            EstadoEnum novoEstado,
+            String novoPais
+    ) {
+        this.cep = novoCep;
+        this.logradouro = novoLogradouro;
+        this.numero = novoNumero;
+        this.complemento = novoComplemento;
+        this.bairro = novoBairro;
+        this.cidade = novaCidade;
+        this.estado = novoEstado;
+        if (novoPais != null) {
+            this.pais = novoPais;
+        }
+    }
+
+    /**
+     * Marca este endereço como principal.
+     * NOTA: Service deve garantir que apenas 1 endereço é principal por tipo.
+     */
+    public void marcarComoPrincipal() {
+        this.enderecoPrincipal = true;
+    }
+
+    /**
+     * Remove flag de endereço principal.
+     */
+    public void removerFlagPrincipal() {
+        this.enderecoPrincipal = false;
     }
 }

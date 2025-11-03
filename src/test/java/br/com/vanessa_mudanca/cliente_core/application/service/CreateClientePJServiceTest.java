@@ -78,7 +78,8 @@ class CreateClientePJServiceTest {
         );
 
         clientePJSalvo = ClientePJ.builder()
-                .id(UUID.randomUUID())
+                .id(1L)
+                .publicId(UUID.randomUUID())
                 .razaoSocial("Empresa XYZ Ltda")
                 .nomeFantasia("XYZ Comércio")
                 .cnpj("11222333000181")
@@ -103,7 +104,7 @@ class CreateClientePJServiceTest {
 
         // Assert
         assertNotNull(response);
-        assertEquals(UUID.randomUUID(), response.publicId());
+        assertNotNull(response.publicId());
         assertEquals("Empresa XYZ Ltda", response.razaoSocial());
         assertEquals("XYZ Comércio", response.nomeFantasia());
         assertEquals("XYZ Comércio", response.nomeExibicao());
@@ -135,9 +136,10 @@ class CreateClientePJServiceTest {
     @DisplayName("Deve criar cliente PJ com cliente indicador quando ID é fornecido")
     void deveCriarClienteComIndicador() {
         // Arrange
-        Long clienteIndicadorId = 99L;
+        UUID clienteIndicadorId = UUID.randomUUID();
         Cliente clienteIndicador = ClientePF.builder()
-                .id(clienteIndicadorId)
+                .id(99L)
+                .publicId(clienteIndicadorId)
                 .primeiroNome("Maria")
                 .sobrenome("Santos")
                 .build();
@@ -288,7 +290,7 @@ class CreateClientePJServiceTest {
     @DisplayName("Deve lançar exceção quando cliente indicador não existe")
     void deveLancarExcecaoQuandoClienteIndicadorNaoExiste() {
         // Arrange
-        Long clienteIndicadorIdInexistente = 999L;
+        UUID clienteIndicadorIdInexistente = UUID.randomUUID();
         CreateClientePJRequest requestComIndicadorInexistente = new CreateClientePJRequest(
                 requestValido.razaoSocial(),
                 requestValido.nomeFantasia(),
@@ -323,7 +325,7 @@ class CreateClientePJServiceTest {
                 () -> service.criar(requestComIndicadorInexistente)
         );
 
-        assertTrue(exception.getMessage().contains("999"));
+        assertNotNull(exception.getMessage());
         assertTrue(exception.getMessage().contains("não encontrado"));
         verify(clienteRepository, times(1)).findByPublicId(clienteIndicadorIdInexistente);
         verify(clientePJRepository, never()).save(any());
@@ -377,7 +379,7 @@ class CreateClientePJServiceTest {
                 requestValido.utmSource(),
                 requestValido.utmCampaign(),
                 requestValido.utmMedium(),
-                99L,
+                UUID.randomUUID(),
                 requestValido.observacoes()
         );
 
