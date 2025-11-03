@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Va Nessa Mudança - Cliente Core
+        Liquibase Master Changelog
+
+        Este arquivo orquestra TODAS as migrações de banco de dados do microserviço cliente-core.
+
+        Estrutura:
+        1. DDL - Criação de tabelas (001-009)
+        2. DDL - Índices otimizados para RDS PostgreSQL (010)
+        3. DDL - Constraints e Foreign Keys (011)
+        4. DML - Seeds para massa de teste (001-008)
+
+        IMPORTANTE:
+        - NUNCA altere changesets já executados
+        - Para mudanças, crie NOVOS changesets
+        - IDs devem ser únicos e sequenciais
+        - Author deve identificar quem criou
+    -->
+
+    <!-- ========================================== -->
+    <!-- DDL: CRIAÇÃO DE TABELAS                    -->
+    <!-- ========================================== -->
+
+    <!-- 1. Tabela pai Cliente (herança JOINED) -->
+    <changeSet id="001-create-table-clientes" author="vanessa-team">
+        <comment>Cria tabela pai 'clientes' com todos os campos base para PF e PJ</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/001-create-table-clientes.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS clientes CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 2. Tabela ClientePF (herança JOINED) -->
+    <changeSet id="002-create-table-clientes-pf" author="vanessa-team">
+        <comment>Cria tabela 'clientes_pf' com campos específicos de Pessoa Física</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/002-create-table-clientes-pf.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS clientes_pf CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 3. Tabela ClientePJ (herança JOINED) -->
+    <changeSet id="003-create-table-clientes-pj" author="vanessa-team">
+        <comment>Cria tabela 'clientes_pj' com campos específicos de Pessoa Jurídica</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/003-create-table-clientes-pj.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS clientes_pj CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 4. Tabela Documentos -->
+    <changeSet id="004-create-table-documentos" author="vanessa-team">
+        <comment>Cria tabela 'documentos' para armazenar documentos dos clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/004-create-table-documentos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS documentos CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 5. Tabela Contatos -->
+    <changeSet id="005-create-table-contatos" author="vanessa-team">
+        <comment>Cria tabela 'contatos' para telefones, emails, WhatsApp dos clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/005-create-table-contatos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS contatos CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 6. Tabela Endereços -->
+    <changeSet id="006-create-table-enderecos" author="vanessa-team">
+        <comment>Cria tabela 'enderecos' para endereços de clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/006-create-table-enderecos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS enderecos CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 7. Tabela Dados Bancários -->
+    <changeSet id="007-create-table-dados-bancarios" author="vanessa-team">
+        <comment>Cria tabela 'dados_bancarios' para contas bancárias e PIX dos clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/007-create-table-dados-bancarios.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS dados_bancarios CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 8. Tabela Preferências Cliente (LGPD) -->
+    <changeSet id="008-create-table-preferencias-cliente" author="vanessa-team">
+        <comment>Cria tabela 'preferencias_cliente' para compliance LGPD</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/008-create-table-preferencias-cliente.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS preferencias_cliente CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- 9. Tabela Auditoria Cliente -->
+    <changeSet id="009-create-table-auditoria-cliente" author="vanessa-team">
+        <comment>Cria tabela 'auditoria_cliente' para rastreamento de alterações</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/009-create-table-auditoria-cliente.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="false"
+            endDelimiter=";"/>
+        <rollback>
+            DROP TABLE IF EXISTS auditoria_cliente CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- ========================================== -->
+    <!-- DDL: ÍNDICES OTIMIZADOS RDS POSTGRESQL     -->
+    <!-- ========================================== -->
+
+    <changeSet id="010-create-indexes" author="vanessa-team">
+        <comment>Cria TODOS os índices otimizados para PostgreSQL RDS (performance crítica)</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/010-create-indexes.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            <!-- Índices serão dropados automaticamente com CASCADE nas tabelas -->
+        </rollback>
+    </changeSet>
+
+    <!-- ========================================== -->
+    <!-- DDL: FOREIGN KEYS E CONSTRAINTS            -->
+    <!-- ========================================== -->
+
+    <changeSet id="011-create-constraints" author="vanessa-team">
+        <comment>Cria Foreign Keys e Unique Constraints para integridade referencial</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/011-create-constraints.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            <!-- FKs serão dropadas automaticamente com CASCADE nas tabelas -->
+        </rollback>
+    </changeSet>
+
+    <!-- ========================================== -->
+    <!-- DML: SEEDS PARA MASSA DE TESTE             -->
+    <!-- ========================================== -->
+
+    <changeSet id="001-seed-clientes-pf" author="vanessa-team" context="dev,test">
+        <comment>Insere 10 clientes Pessoa Física com dados realistas para testes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/001-seed-clientes-pf.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM clientes_pf;
+            DELETE FROM clientes WHERE dtype = 'PF';
+        </rollback>
+    </changeSet>
+
+    <changeSet id="002-seed-clientes-pj" author="vanessa-team" context="dev,test">
+        <comment>Insere 5 clientes Pessoa Jurídica com dados realistas para testes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/002-seed-clientes-pj.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM clientes_pj;
+            DELETE FROM clientes WHERE dtype = 'PJ';
+        </rollback>
+    </changeSet>
+
+    <changeSet id="003-seed-documentos" author="vanessa-team" context="dev,test">
+        <comment>Insere documentos para os clientes (CPF, RG, CNH, CNPJ, etc)</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/003-seed-documentos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM documentos;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="004-seed-contatos" author="vanessa-team" context="dev,test">
+        <comment>Insere contatos (celular, email, WhatsApp) para os clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/004-seed-contatos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM contatos;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="005-seed-enderecos" author="vanessa-team" context="dev,test">
+        <comment>Insere endereços completos para os clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/005-seed-enderecos.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM enderecos;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="006-seed-dados-bancarios" author="vanessa-team" context="dev,test">
+        <comment>Insere dados bancários e chaves PIX para os clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/006-seed-dados-bancarios.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM dados_bancarios;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="007-seed-preferencias" author="vanessa-team" context="dev,test">
+        <comment>Insere preferências LGPD para os clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/007-seed-preferencias.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM preferencias_cliente;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="008-seed-auditoria" author="vanessa-team" context="dev,test">
+        <comment>Insere histórico de auditoria para os clientes</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/008-seed-auditoria.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM auditoria_cliente;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
