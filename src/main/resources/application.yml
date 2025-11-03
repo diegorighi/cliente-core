@@ -10,10 +10,31 @@ server:
     context-path: /api/clientes
 
 management:
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,loggers,prometheus
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Micro servico responsavel pelo CRUD de clientes
+    version: ${application.version:0.0.1-SNAPSHOT}
+
+springdoc:
+  show-actuator: true
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  override-with-generic-response: false

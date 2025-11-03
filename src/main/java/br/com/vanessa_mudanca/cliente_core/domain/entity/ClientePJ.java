@@ -44,7 +44,7 @@ public class ClientePJ extends Cliente {
     @Column(name = "atividade_principal", length = 200)
     private String atividadePrincipal;
 
-    @Column(name = "capital_social")
+    @Column(name = "capital_social", precision = 15, scale = 2)
     private BigDecimal capitalSocial;
 
     @Column(name = "nome_responsavel", length = 200)

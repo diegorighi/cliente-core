@@ -188,6 +188,22 @@
         </rollback>
     </changeSet>
 
+    <!-- 12. Adiciona coluna public_id UUID para identificadores públicos -->
+    <changeSet id="012-add-public-id-column" author="vanessa-team">
+        <comment>Adiciona coluna public_id UUID para uso em APIs públicas (segurança)</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/012-add-public-id-column.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DROP INDEX IF EXISTS idx_clientes_public_id;
+            ALTER TABLE clientes DROP CONSTRAINT IF EXISTS uk_clientes_public_id;
+            ALTER TABLE clientes DROP COLUMN IF EXISTS public_id;
+        </rollback>
+    </changeSet>
+
     <!-- ========================================== -->
     <!-- DML: SEEDS PARA MASSA DE TESTE             -->
     <!-- ========================================== -->
