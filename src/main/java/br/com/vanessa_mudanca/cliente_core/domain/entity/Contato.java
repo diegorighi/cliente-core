@@ -69,7 +69,7 @@ public class Contato {
      * COMPORTAMENTO: Invalida verificação se valor mudou.
      */
     public void atualizarValor(String novoValor) {
-        if (!this.valor.equals(novoValor)) {
+        if (novoValor != null && !this.valor.equals(novoValor)) {
             this.valor = novoValor;
             this.verificado = false; // Precisa re-verificar
         }
@@ -80,7 +80,7 @@ public class Contato {
      * COMPORTAMENTO: Invalida verificação se tipo mudou.
      */
     public void atualizarTipo(TipoContatoEnum novoTipo) {
-        if (this.tipoContato != novoTipo) {
+        if (novoTipo != null && this.tipoContato != novoTipo) {
             this.tipoContato = novoTipo;
             this.verificado = false; // Mudou tipo, re-verificar
         }

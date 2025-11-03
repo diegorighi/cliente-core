@@ -66,4 +66,82 @@ public class ClientePJ extends Cliente {
         }
         return razaoSocial;
     }
+
+    // ========== MÉTODOS COMPORTAMENTAIS (Tell, Don't Ask) ==========
+
+    /**
+     * Atualiza dados básicos da empresa.
+     * COMPORTAMENTO: Update seletivo (null = não atualizar).
+     */
+    public void atualizarDadosBasicos(
+            String novaRazaoSocial,
+            String novoNomeFantasia,
+            String novaInscricaoEstadual,
+            String novaInscricaoMunicipal,
+            LocalDate novaDataAbertura,
+            String novoEmail
+    ) {
+        if (novaRazaoSocial != null) {
+            this.razaoSocial = novaRazaoSocial;
+        }
+        if (novoNomeFantasia != null) {
+            this.nomeFantasia = novoNomeFantasia;
+        }
+        if (novaInscricaoEstadual != null) {
+            this.inscricaoEstadual = novaInscricaoEstadual;
+        }
+        if (novaInscricaoMunicipal != null) {
+            this.inscricaoMunicipal = novaInscricaoMunicipal;
+        }
+        if (novaDataAbertura != null) {
+            this.dataAbertura = novaDataAbertura;
+        }
+        if (novoEmail != null) {
+            this.setEmail(novoEmail);
+        }
+    }
+
+    /**
+     * Atualiza dados de classificação da empresa.
+     * COMPORTAMENTO: Update seletivo (null = não atualizar).
+     */
+    public void atualizarDadosClassificacao(
+            String novoPorteEmpresa,
+            String novaNaturezaJuridica,
+            String novaAtividadePrincipal,
+            BigDecimal novoCapitalSocial
+    ) {
+        if (novoPorteEmpresa != null) {
+            this.porteEmpresa = novoPorteEmpresa;
+        }
+        if (novaNaturezaJuridica != null) {
+            this.naturezaJuridica = novaNaturezaJuridica;
+        }
+        if (novaAtividadePrincipal != null) {
+            this.atividadePrincipal = novaAtividadePrincipal;
+        }
+        if (novoCapitalSocial != null) {
+            this.capitalSocial = novoCapitalSocial;
+        }
+    }
+
+    /**
+     * Atualiza dados do responsável legal da empresa.
+     * COMPORTAMENTO: Update seletivo (null = não atualizar).
+     */
+    public void atualizarDadosResponsavel(
+            String novoNomeResponsavel,
+            String novoCpfResponsavel,
+            String novoCargoResponsavel
+    ) {
+        if (novoNomeResponsavel != null) {
+            this.nomeResponsavel = novoNomeResponsavel;
+        }
+        if (novoCpfResponsavel != null) {
+            this.cpfResponsavel = novoCpfResponsavel;
+        }
+        if (novoCargoResponsavel != null) {
+            this.cargoResponsavel = novoCargoResponsavel;
+        }
+    }
 }

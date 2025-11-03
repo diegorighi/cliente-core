@@ -331,6 +331,74 @@ mvn clean verify
 
 **Coverage target:** Minimum 80%
 
+### QA Testing Strategy
+
+**When implementing new features, ALWAYS follow this workflow:**
+
+1. **Code Implementation** → Write feature code with TDD
+2. **Unit Tests** → Ensure all unit tests pass (≥80% coverage)
+3. **Code Review** → Use `feature-dev:code-reviewer` agent to identify issues
+4. **Fix Critical Issues** → Address all CRITICAL and HIGH severity issues
+5. **Create QA Test Plan** → Document test scenarios (see `docs/qa/`)
+6. **Execute QA Tests** → Run systematic QA testing
+7. **Document Results** → Update test plan with actual results
+
+**QA Test Plan Template Location:**
+- `docs/qa/UPDATE_CLIENTEPF_TEST_PLAN.md` (reference template)
+- **32 test scenarios covering:** Happy path, edge cases, business rules, security, error handling, data integrity
+
+**Common Pitfalls to Avoid (learned from UpdateClientePF review):**
+
+1. **Null Safety in Behavioral Methods**
+   ```java
+   // ❌ BAD - NPE risk
+   public void atualizarValor(String novoValor) {
+       if (!this.valor.equals(novoValor)) { // NPE if novoValor is null
+           this.valor = novoValor;
+       }
+   }
+
+   // ✅ GOOD - Defensive programming
+   public void atualizarValor(String novoValor) {
+       if (novoValor != null && !this.valor.equals(novoValor)) {
+           this.valor = novoValor;
+       }
+   }
+   ```
+
+2. **Fallback to Entity Values When DTO is Partial**
+   ```java
+   // ❌ BAD - Passes null to validator
+   validador.validar(dto.tipoEndereco());
+
+   // ✅ GOOD - Fallback to entity value
+   TipoEnderecoEnum tipo = dto.tipoEndereco() != null
+       ? dto.tipoEndereco()
+       : endereco.getTipoEndereco();
+   validador.validar(tipo);
+   ```
+
+3. **Cross-Client Ownership Validation**
+   ```java
+   // ✅ REQUIRED - Always validate entity belongs to client
+   if (!entity.getCliente().getId().equals(cliente.getId())) {
+       throw new IllegalArgumentException("Entity doesn't belong to this client");
+   }
+   ```
+
+4. **Transaction Rollback Testing**
+   - ALWAYS include test case for partial failure rollback
+   - Verify NO changes persisted when ANY entity update fails
+
+**Code Review Checklist:**
+- [ ] Null safety in all behavioral methods
+- [ ] Fallback logic for partial DTOs
+- [ ] Cross-client ownership validation
+- [ ] Transaction boundaries correct (`@Transactional`)
+- [ ] Business rule validators implemented
+- [ ] Principal uniqueness enforced
+- [ ] Security validations in place
+
 ---
 
 ## Common Development Workflows

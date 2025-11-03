@@ -6,6 +6,7 @@ import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateCliente
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByCnpjUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePJUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePJUseCase;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.exception.CnpjInvalidoException;
 import br.com.vanessa_mudanca.cliente_core.domain.exception.CnpjJaCadastradoException;
@@ -54,6 +55,9 @@ class ClientePJControllerTest {
 
     @MockBean
     private ListClientePJUseCase listClientePJUseCase;
+
+    @MockBean
+    private UpdateClientePJUseCase updateClientePJUseCase;
 
     private ObjectMapper objectMapper;
     private CreateClientePJRequest requestValido;

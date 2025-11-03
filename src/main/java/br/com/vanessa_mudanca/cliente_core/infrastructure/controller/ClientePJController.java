@@ -1,12 +1,14 @@
 package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePJRequest;
+import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePJRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePJResponse;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.PageResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePJUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByCnpjUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePJUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePJUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -34,16 +36,19 @@ import java.util.UUID;
 public class ClientePJController {
 
     private final CreateClientePJUseCase createClientePJUseCase;
+    private final UpdateClientePJUseCase updateClientePJUseCase;
     private final FindClientePJByIdUseCase findClientePJByIdUseCase;
     private final FindClientePJByCnpjUseCase findClientePJByCnpjUseCase;
     private final ListClientePJUseCase listClientePJUseCase;
 
     public ClientePJController(
             CreateClientePJUseCase createClientePJUseCase,
+            UpdateClientePJUseCase updateClientePJUseCase,
             FindClientePJByIdUseCase findClientePJByIdUseCase,
             FindClientePJByCnpjUseCase findClientePJByCnpjUseCase,
             ListClientePJUseCase listClientePJUseCase) {
         this.createClientePJUseCase = createClientePJUseCase;
+        this.updateClientePJUseCase = updateClientePJUseCase;
         this.findClientePJByIdUseCase = findClientePJByIdUseCase;
         this.findClientePJByCnpjUseCase = findClientePJByCnpjUseCase;
         this.listClientePJUseCase = listClientePJUseCase;
@@ -106,6 +111,50 @@ public class ClientePJController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
 
         PageResponse<ClientePJResponse> response = listClientePJUseCase.findAll(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{publicId}")
+    @Operation(
+            summary = "Atualizar cliente PJ",
+            description = "Atualiza dados do cliente PJ e suas entidades relacionadas (documentos, endereços, contatos). " +
+                    "Permite atualização seletiva: apenas os campos presentes no request serão atualizados."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "404", description = "Cliente, documento, endereço ou contato não encontrado"),
+            @ApiResponse(responseCode = "409", description = "Conflito ao tentar marcar mais de um item como principal")
+    })
+    public ResponseEntity<ClientePJResponse> atualizar(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            @Valid @RequestBody UpdateClientePJRequest request) {
+
+        // Garantir que o publicId do path seja usado (segurança)
+        UpdateClientePJRequest requestComId = UpdateClientePJRequest.builder()
+                .publicId(publicId)
+                .razaoSocial(request.razaoSocial())
+                .nomeFantasia(request.nomeFantasia())
+                .inscricaoEstadual(request.inscricaoEstadual())
+                .inscricaoMunicipal(request.inscricaoMunicipal())
+                .dataAbertura(request.dataAbertura())
+                .email(request.email())
+                .porteEmpresa(request.porteEmpresa())
+                .naturezaJuridica(request.naturezaJuridica())
+                .atividadePrincipal(request.atividadePrincipal())
+                .capitalSocial(request.capitalSocial())
+                .nomeResponsavel(request.nomeResponsavel())
+                .cpfResponsavel(request.cpfResponsavel())
+                .cargoResponsavel(request.cargoResponsavel())
+                .site(request.site())
+                .tipoCliente(request.tipoCliente())
+                .observacoes(request.observacoes())
+                .documentos(request.documentos())
+                .enderecos(request.enderecos())
+                .contatos(request.contatos())
+                .build();
+
+        ClientePJResponse response = updateClientePJUseCase.atualizar(requestComId);
         return ResponseEntity.ok(response);
     }
 }

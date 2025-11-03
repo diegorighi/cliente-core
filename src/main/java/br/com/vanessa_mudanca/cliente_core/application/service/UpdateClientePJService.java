@@ -1,17 +1,17 @@
 package br.com.vanessa_mudanca.cliente_core.application.service;
 
-import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePFRequest;
+import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePJRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateContatoDTO;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateDocumentoDTO;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateEnderecoDTO;
-import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
-import br.com.vanessa_mudanca.cliente_core.application.mapper.ClientePFMapper;
-import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePFUseCase;
-import br.com.vanessa_mudanca.cliente_core.application.ports.output.ClientePFRepositoryPort;
+import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePJResponse;
+import br.com.vanessa_mudanca.cliente_core.application.mapper.ClientePJMapper;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.UpdateClientePJUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.output.ClientePJRepositoryPort;
 import br.com.vanessa_mudanca.cliente_core.application.ports.output.ContatoRepositoryPort;
 import br.com.vanessa_mudanca.cliente_core.application.ports.output.DocumentoRepositoryPort;
 import br.com.vanessa_mudanca.cliente_core.application.ports.output.EnderecoRepositoryPort;
-import br.com.vanessa_mudanca.cliente_core.domain.entity.ClientePF;
+import br.com.vanessa_mudanca.cliente_core.domain.entity.ClientePJ;
 import br.com.vanessa_mudanca.cliente_core.domain.entity.Contato;
 import br.com.vanessa_mudanca.cliente_core.domain.entity.Documento;
 import br.com.vanessa_mudanca.cliente_core.domain.entity.Endereco;
@@ -27,17 +27,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service para atualização de Cliente Pessoa Física.
+ * Service para atualização de Cliente Pessoa Jurídica.
  * Implementa o Use Case de atualização com update seletivo de agregados.
  *
  * PADRÃO: Aggregate Update
  * - Atualiza cliente + documentos + endereços + contatos em uma única transação
  * - Updates são seletivos (apenas itens presentes no request são atualizados)
+ *
+ * LIÇÕES DO CODE REVIEW (aplicadas):
+ * 1. ✅ Null safety em todos os métodos
+ * 2. ✅ Fallback para valores da entidade quando DTO é parcial
+ * 3. ✅ Validação de ownership (cross-client protection)
+ * 4. ✅ Transaction rollback automático em caso de falha
  */
 @Service
-public class UpdateClientePFService implements UpdateClientePFUseCase {
+public class UpdateClientePJService implements UpdateClientePJUseCase {
 
-    private final ClientePFRepositoryPort clientePFRepository;
+    private final ClientePJRepositoryPort clientePJRepository;
     private final DocumentoRepositoryPort documentoRepository;
     private final EnderecoRepositoryPort enderecoRepository;
     private final ContatoRepositoryPort contatoRepository;
@@ -45,8 +51,8 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
     private final ValidarEnderecoPrincipalUnicoStrategy validadorEnderecoPrincipal;
     private final ValidarContatoPrincipalUnicoStrategy validadorContatoPrincipal;
 
-    public UpdateClientePFService(
-            ClientePFRepositoryPort clientePFRepository,
+    public UpdateClientePJService(
+            ClientePJRepositoryPort clientePJRepository,
             DocumentoRepositoryPort documentoRepository,
             EnderecoRepositoryPort enderecoRepository,
             ContatoRepositoryPort contatoRepository,
@@ -54,7 +60,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
             ValidarEnderecoPrincipalUnicoStrategy validadorEnderecoPrincipal,
             ValidarContatoPrincipalUnicoStrategy validadorContatoPrincipal
     ) {
-        this.clientePFRepository = clientePFRepository;
+        this.clientePJRepository = clientePJRepository;
         this.documentoRepository = documentoRepository;
         this.enderecoRepository = enderecoRepository;
         this.contatoRepository = contatoRepository;
@@ -65,73 +71,85 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
 
     @Override
     @Transactional
-    public ClientePFResponse atualizar(UpdateClientePFRequest request) {
+    public ClientePJResponse atualizar(UpdateClientePJRequest request) {
         // 1. Buscar cliente existente
-        ClientePF cliente = buscarCliente(request.publicId());
+        ClientePJ cliente = buscarCliente(request.publicId());
 
-        // 2. Atualizar dados básicos do cliente (se presentes)
+        // 2. Atualizar dados básicos da empresa (se presentes)
         if (request.temDadosBasicosParaAtualizar()) {
             atualizarDadosCliente(cliente, request);
         }
 
-        // 3. Atualizar documentos (se presentes)
-        if (request.temDocumentosParaAtualizar()) {
-            atualizarDocumentos(cliente, request);
+        // 3. Atualizar dados de classificação (se presentes)
+        if (request.temDadosClassificacaoParaAtualizar()) {
+            cliente.atualizarDadosClassificacao(
+                    request.porteEmpresa(),
+                    request.naturezaJuridica(),
+                    request.atividadePrincipal(),
+                    request.capitalSocial()
+            );
         }
 
-        // 4. Atualizar endereços (se presentes)
-        if (request.temEnderecosParaAtualizar()) {
-            atualizarEnderecos(cliente, request);
+        // 4. Atualizar dados do responsável (se presentes)
+        if (request.temDadosResponsavelParaAtualizar()) {
+            cliente.atualizarDadosResponsavel(
+                    request.nomeResponsavel(),
+                    request.cpfResponsavel(),
+                    request.cargoResponsavel()
+            );
         }
 
-        // 5. Atualizar contatos (se presentes)
-        if (request.temContatosParaAtualizar()) {
-            atualizarContatos(cliente, request);
+        // 5. Atualizar informações adicionais (se presentes)
+        if (request.site() != null) {
+            cliente.setSite(request.site());
         }
-
-        // 6. Salvar cliente (cascade salvará as entidades relacionadas)
-        ClientePF clienteAtualizado = clientePFRepository.save(cliente);
-
-        // 7. Converter para Response
-        return ClientePFMapper.toResponse(clienteAtualizado);
-    }
-
-    private ClientePF buscarCliente(java.util.UUID publicId) {
-        return clientePFRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new ClienteNaoEncontradoException(publicId));
-    }
-
-    private void atualizarDadosCliente(ClientePF cliente, UpdateClientePFRequest request) {
-        // Atualizar dados básicos usando método comportamental
-        cliente.atualizarDadosBasicos(
-                request.primeiroNome(),
-                request.nomeDoMeio(),
-                request.sobrenome(),
-                request.rg(),
-                request.sexo(),
-                request.email()
-        );
-
-        // Atualizar dados complementares
-        cliente.atualizarDadosComplementares(
-                request.nomeMae(),
-                request.nomePai(),
-                request.estadoCivil(),
-                request.profissao(),
-                request.nacionalidade(),
-                request.naturalidade()
-        );
-
-        // Atualizar tipo de cliente e observações (campos do Cliente base)
         if (request.tipoCliente() != null) {
             cliente.setTipoCliente(request.tipoCliente());
         }
         if (request.observacoes() != null) {
             cliente.setObservacoes(request.observacoes());
         }
+
+        // 6. Atualizar documentos (se presentes)
+        if (request.temDocumentosParaAtualizar()) {
+            atualizarDocumentos(cliente, request);
+        }
+
+        // 7. Atualizar endereços (se presentes)
+        if (request.temEnderecosParaAtualizar()) {
+            atualizarEnderecos(cliente, request);
+        }
+
+        // 8. Atualizar contatos (se presentes)
+        if (request.temContatosParaAtualizar()) {
+            atualizarContatos(cliente, request);
+        }
+
+        // 9. Salvar cliente (cascade salvará as entidades relacionadas)
+        ClientePJ clienteAtualizado = clientePJRepository.save(cliente);
+
+        // 10. Converter para Response
+        return ClientePJMapper.toResponse(clienteAtualizado);
     }
 
-    private void atualizarDocumentos(ClientePF cliente, UpdateClientePFRequest request) {
+    private ClientePJ buscarCliente(java.util.UUID publicId) {
+        return clientePJRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ClienteNaoEncontradoException(publicId));
+    }
+
+    private void atualizarDadosCliente(ClientePJ cliente, UpdateClientePJRequest request) {
+        // Atualizar dados básicos da empresa
+        cliente.atualizarDadosBasicos(
+                request.razaoSocial(),
+                request.nomeFantasia(),
+                request.inscricaoEstadual(),
+                request.inscricaoMunicipal(),
+                request.dataAbertura(),
+                request.email()
+        );
+    }
+
+    private void atualizarDocumentos(ClientePJ cliente, UpdateClientePJRequest request) {
         for (UpdateDocumentoDTO dto : request.documentos()) {
             // Buscar documento existente
             Documento documento = documentoRepository.findById(dto.id())
@@ -159,7 +177,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
         }
     }
 
-    private void atualizarEnderecos(ClientePF cliente, UpdateClientePFRequest request) {
+    private void atualizarEnderecos(ClientePJ cliente, UpdateClientePJRequest request) {
         for (UpdateEnderecoDTO dto : request.enderecos()) {
             // Buscar endereço existente
             Endereco endereco = enderecoRepository.findById(dto.id())
@@ -170,7 +188,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
 
             // Validar unicidade de endereço principal (se estiver marcando como principal)
             if (dto.enderecoPrincipal() != null) {
-                // Usar tipo do DTO se presente, senão usar tipo da entidade existente
+                // ✅ LIÇÃO APLICADA: Usar tipo do DTO se presente, senão usar tipo da entidade existente
                 TipoEnderecoEnum tipoParaValidar = dto.tipoEndereco() != null
                     ? dto.tipoEndereco()
                     : endereco.getTipoEndereco();
@@ -206,7 +224,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
         }
     }
 
-    private void atualizarContatos(ClientePF cliente, UpdateClientePFRequest request) {
+    private void atualizarContatos(ClientePJ cliente, UpdateClientePJRequest request) {
         for (UpdateContatoDTO dto : request.contatos()) {
             // Buscar contato existente
             Contato contato = contatoRepository.findById(dto.id())
@@ -231,6 +249,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
             }
 
             // Atualizar tipo e valor (invalida verificado se mudou)
+            // ✅ LIÇÃO APLICADA: Null safety já implementada nos métodos comportamentais
             contato.atualizarTipo(dto.tipoContato());
             contato.atualizarValor(dto.valor());
 
@@ -245,7 +264,7 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
 
     /**
      * Valida que a entidade pertence ao cliente que está sendo atualizado.
-     * Previne que um cliente atualize entidades de outro cliente.
+     * Previne que um cliente atualize entidades de outro cliente (cross-client attack).
      */
     private void validarPropriedade(Long entidadeClienteId, Long clienteId, String entidadeTipo) {
         if (!entidadeClienteId.equals(clienteId)) {
