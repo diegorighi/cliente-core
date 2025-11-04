@@ -3,6 +3,9 @@ spring:
     name: cliente-core
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
 
 server:
   port: 8081

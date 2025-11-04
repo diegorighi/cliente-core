@@ -44,16 +44,21 @@ class UpdateClientePFIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Gerar email E CPF únicos para cada teste (evita conflitos de unicidade)
+        long timestamp = System.currentTimeMillis();
+        String emailUnico = "joao.silva." + timestamp + "@email.com";
+        String cpfValido = gerarCpfValido(timestamp);
+
         // Criar cliente PF para ser atualizado nos testes
         CreateClientePFRequest createRequest = new CreateClientePFRequest(
                 "João",
                 "da",
                 "Silva",
-                "123.456.789-09", // CPF válido
+                cpfValido,
                 "MG-12.345.678",
                 LocalDate.of(1990, 1, 15),
                 SexoEnum.MASCULINO,
-                "joao.silva@email.com",
+                emailUnico,
                 "Maria da Silva",
                 "José da Silva",
                 "Casado",
@@ -70,11 +75,30 @@ class UpdateClientePFIntegrationTest extends AbstractIntegrationTest {
         );
 
         String url = getBaseUrl() + "/clientes/pf";
-        ResponseEntity<ClientePFResponse> createResponse = restTemplate.postForEntity(
-                url,
-                createRequest,
-                ClientePFResponse.class
-        );
+
+        ResponseEntity<ClientePFResponse> createResponse;
+        try {
+            createResponse = restTemplate.postForEntity(
+                    url,
+                    createRequest,
+                    ClientePFResponse.class
+            );
+        } catch (Exception e) {
+            System.err.println("❌ ERROR during POST to: " + url);
+            System.err.println("Exception: " + e.getClass().getName());
+            System.err.println("Message: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            throw e;
+        }
+
+        // Debug: Print response details if not CREATED
+        if (createResponse.getStatusCode() != HttpStatus.CREATED) {
+            System.err.println("❌ ERROR: Expected 201, got " + createResponse.getStatusCode());
+            System.err.println("URL: " + url);
+            System.err.println("Response body: " + createResponse.getBody());
+        }
 
         assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
         assertNotNull(createResponse.getBody());
@@ -267,5 +291,38 @@ class UpdateClientePFIntegrationTest extends AbstractIntegrationTest {
         assertEquals(estadoAnterior.email(), atualizado.email());
         assertEquals(estadoAnterior.sexo(), atualizado.sexo());
         assertEquals(estadoAnterior.estadoCivil(), atualizado.estadoCivil());
+    }
+
+    /**
+     * Gera um CPF válido (com dígitos verificadores corretos) baseado em um seed.
+     * Útil para testes onde precisamos de CPFs únicos mas válidos.
+     */
+    private String gerarCpfValido(long seed) {
+        // Gera 9 dígitos base a partir do seed
+        int[] cpf = new int[11];
+        for (int i = 0; i < 9; i++) {
+            cpf[i] = (int) ((seed / Math.pow(10, i)) % 10);
+        }
+
+        // Calcula primeiro dígito verificador
+        int soma = 0;
+        for (int i = 0; i < 9; i++) {
+            soma += cpf[i] * (10 - i);
+        }
+        cpf[9] = 11 - (soma % 11);
+        if (cpf[9] >= 10) cpf[9] = 0;
+
+        // Calcula segundo dígito verificador
+        soma = 0;
+        for (int i = 0; i < 10; i++) {
+            soma += cpf[i] * (11 - i);
+        }
+        cpf[10] = 11 - (soma % 11);
+        if (cpf[10] >= 10) cpf[10] = 0;
+
+        // Formata CPF
+        return String.format("%d%d%d.%d%d%d.%d%d%d-%d%d",
+                cpf[0], cpf[1], cpf[2], cpf[3], cpf[4], cpf[5],
+                cpf[6], cpf[7], cpf[8], cpf[9], cpf[10]);
     }
 }

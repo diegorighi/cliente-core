@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: integration
+
+  # PostgreSQL via TestContainers (configurado dinamicamente em AbstractIntegrationTest)
+  # As propriedades abaixo são defaults, mas serão sobrescritas por @DynamicPropertySource
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db-changelog-master.xml
+    contexts: ""  # Vazio = executa apenas changesets sem context (DDL, não seeds)
+    drop-first: false
+
+logging:
+  level:
+    root: WARN
+    br.com.vanessa_mudanca: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate: WARN
+    org.testcontainers: INFO

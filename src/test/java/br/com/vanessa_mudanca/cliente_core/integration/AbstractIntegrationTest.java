@@ -10,20 +10,23 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Classe base abstrata para testes de integração com TestContainers.
+ * Classe base abstrata para testes de integração end-to-end com TestContainers.
  *
  * Configuração:
  * - Spring Boot Test com servidor web em porta aleatória
- * - PostgreSQL rodando em Docker via TestContainers
+ * - PostgreSQL rodando em Docker via TestContainers (ambiente realista)
  * - Liquibase executa migrations automaticamente
- * - Profile 'test' ativo
+ * - Profile 'integration' ativo (diferente de 'test' que usa H2)
  *
  * Padrão Singleton Container:
  * - Container PostgreSQL compartilhado entre todos os testes (performance)
  * - Dados limpos entre testes via @Transactional ou limpeza manual
+ *
+ * IMPORTANTE: Testes unitários usam profile 'test' com H2.
+ *            Apenas testes E2E estendem esta classe.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@ActiveProfiles("integration")
 @Testcontainers
 public abstract class AbstractIntegrationTest {
 
@@ -51,8 +54,12 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", postgresContainer::getUsername);
         registry.add("spring.datasource.password", postgresContainer::getPassword);
 
-        // Desabilita Liquibase contexts de seeds (apenas DDL)
-        registry.add("spring.liquibase.contexts", () -> "ddl-only");
+        // Liquibase configuration
+        registry.add("spring.liquibase.enabled", () -> "true");
+        registry.add("spring.liquibase.change-log", () -> "classpath:db/changelog/db-changelog-master.xml");
+        // Context "integration" não existe em nenhum changeset
+        // Resultado: roda apenas changesets SEM context (DDL) e ignora os COM context (seeds)
+        registry.add("spring.liquibase.contexts", () -> "integration");
 
         // JPA deve validar schema (não criar)
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
@@ -60,8 +67,9 @@ public abstract class AbstractIntegrationTest {
 
     /**
      * Retorna base URL para chamadas REST.
+     * Inclui context-path do servidor (/api/clientes) configurado em application.yml.
      */
     protected String getBaseUrl() {
-        return "http://localhost:" + port + "/v1";
+        return "http://localhost:" + port + "/api/clientes/v1";
     }
 }
