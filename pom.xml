@@ -29,6 +29,9 @@
 	<properties>
 		<java.version>21</java.version>
 		<testcontainers.version>1.20.4</testcontainers.version>
+		<!-- Skip OWASP por padrão (requer NVD API Key desde 2023) -->
+		<!-- Para rodar: mvn verify -Dowasp.skip=false -->
+		<owasp.skip>true</owasp.skip>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -212,6 +215,9 @@
 					<suppressionFiles>
 						<suppressionFile>.dependency-check-suppressions.xml</suppressionFile>
 					</suppressionFiles>
+					<!-- Skip OWASP durante desenvolvimento local (evita erro 403/404 do NVD sem API Key) -->
+					<!-- Para habilitar: mvn verify -Dowasp.skip=false -->
+					<skip>${owasp.skip}</skip>
 				</configuration>
 			</plugin>
 		</plugins>

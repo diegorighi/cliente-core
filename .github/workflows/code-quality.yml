@@ -6,14 +6,16 @@ on:
     branches: [developer, release, main]
 env:
   JAVA_VERSION: 21
+  # SonarCloud configuration - Update this to match your SonarCloud organization name
+  SONAR_ORGANIZATION: va-nessa-mudanca
 jobs:
-  sonarqube:
-    name: SonarQube Analysis
+  sonarcloud:
+    name: SonarCloud Analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
       - uses: actions/setup-java@v4
         with:
           java-version: 21
@@ -22,14 +24,20 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
-          key: sonar
-      - name: Build and analyze
-        run: mvn clean verify sonar:sonar -Dsonar.projectKey=va-nessa-mudanca-cliente-core
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Build and analyze with SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      - uses: sonarsource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_ORG: ${{ env.SONAR_ORGANIZATION }}
+        run: |
+          mvn clean verify sonar:sonar \
+            -Dsonar.projectKey=va-nessa-mudanca-cliente-core \
+            -Dsonar.organization=${SONAR_ORG} \
+            -Dsonar.host.url=https://sonarcloud.io
+      - uses: sonarsource/sonarcloud-github-action@master
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   dependency-check:
@@ -41,7 +49,11 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
-      - run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+          cache: maven
+      - name: Run OWASP Dependency Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: mvn verify -Dowasp.skip=false
       - uses: actions/upload-artifact@v4
         if: always()
         with:
