@@ -1,53 +1,63 @@
-# Maven Configuration Override
+# Maven Configuration - Cliente-Core
 
-## Propósito
+## ⚠️ IMPORTANTE
 
-Este diretório `.mvn/` contém configurações específicas do projeto **Va Nessa Mudança** que sobrescrevem as configurações globais do Maven.
+**Este microserviço HERDA a configuração Maven da RAIZ do monorepo.**
 
-## Problema Resolvido
+```
+va-nessa-mudanca/.mvn/maven.config  ← Configuração HERDADA
+cliente-core/.mvn/                  ← Apenas wrapper + docs
+```
 
-**Situação:** Maven global configurado para usar Nexus Porto Seguro (corporativo).
-**Necessidade:** Va Nessa Mudança deve usar Maven Central (público).
-**Solução:** Maven config file força uso de settings alternativo.
+**NÃO há `maven.config` neste diretório!** A configuração vem de `../../.mvn/maven.config`.
 
 ---
 
-## Arquivo: maven.config
+## Propósito deste Diretório
+
+Este `.mvn/` contém:
+- ✅ **Maven Wrapper** (`./mvnw`) - Build sem Maven instalado
+- ✅ **README.md** (este arquivo) - Documentação específica do MS
+- ❌ **maven.config** - AUSENTE (herda da raiz)
+
+## Problema Resolvido (Nível Monorepo)
+
+**Situação:** Maven global configurado para usar Nexus Porto Seguro (corporativo).
+**Necessidade:** Va Nessa Mudança deve usar Maven Central (público).
+**Solução:** `.mvn/maven.config` na RAIZ força Maven Central para TODOS os MS.
+
+---
+
+## Como Funciona a Herança
+
+### Maven 3.3.1+ - Busca Hierárquica
+
+Quando você roda Maven em `cliente-core/`:
+
+```bash
+cd va-nessa-mudanca/cliente-core
+mvn clean install
+```
+
+Maven busca `.mvn/maven.config`:
+1. `cliente-core/.mvn/maven.config` ❌ Não existe
+2. `va-nessa-mudanca/.mvn/maven.config` ✅ ENCONTRADO!
+
+**Resultado:** Usa `settings_old.xml` (Maven Central) automaticamente.
+
+### Arquivo Herdado (na raiz)
+
+**Localização:** `../../.mvn/maven.config`
 
 **Conteúdo:**
 ```
 -s /Users/diegorighi/Desenvolvimento/Infra/apache-maven-3.9.11/conf/settings_old.xml
 ```
 
-**O que faz:**
-- Força Maven a usar `settings_old.xml` (Maven Central)
-- Ignora `settings.xml` global (Porto Seguro)
-- Aplicado automaticamente a TODOS os comandos Maven neste projeto
-
----
-
-## Como Funciona
-
-### Maven 3.3.1+ (.mvn/maven.config)
-
-Quando você roda **qualquer comando Maven** dentro de `cliente-core/`:
-
-```bash
-mvn clean install
-mvn test
-mvn spring-boot:run
-```
-
-O Maven automaticamente:
-1. Detecta o diretório `.mvn/`
-2. Lê o arquivo `maven.config`
-3. Aplica `-s /path/to/settings_old.xml`
-4. Usa Maven Central ao invés de Porto Seguro
-
-**Equivalente manual:**
-```bash
-mvn -s /Users/.../settings_old.xml clean install
-```
+**Efeito para cliente-core:**
+- ✅ Usa Maven Central (repo.maven.apache.org)
+- ✅ Ignora Nexus Porto Seguro
+- ✅ Mesma config que TODOS os MS do monorepo
 
 ---
 
