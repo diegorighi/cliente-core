@@ -55,6 +55,7 @@ public class DynamoDbCache implements Cache {
 
     private static final String ATTR_CACHE_KEY = "cacheKey";
     private static final String ATTR_VALUE = "value";
+    private static final String ATTR_TYPE = "valueType";  // Nome da classe para deserialização
     private static final String ATTR_CREATED_AT = "createdAt";
     private static final String ATTR_EXPIRATION_TIME = "expirationTime";
 
@@ -129,9 +130,13 @@ public class DynamoDbCache implements Cache {
             }
 
             String json = item.get(ATTR_VALUE).s();
-            Object value = objectMapper.readValue(json, Object.class);
+            String className = item.get(ATTR_TYPE).s();
 
-            log.debug("Cache hit - Cache: {}, Key: {}", name, key);
+            // Deserializar com tipo correto
+            Class<?> clazz = Class.forName(className);
+            Object value = objectMapper.readValue(json, clazz);
+
+            log.debug("Cache hit - Cache: {}, Key: {}, Type: {}", name, key, className);
             return () -> value;
 
         } catch (Exception e) {
@@ -219,6 +224,7 @@ public class DynamoDbCache implements Cache {
         try {
             String cacheKey = buildCacheKey(key);
             String json = objectMapper.writeValueAsString(value);
+            String className = value.getClass().getName();
 
             long now = Instant.now().getEpochSecond();
             long expirationTime = now + ttl.getSeconds();
@@ -226,6 +232,7 @@ public class DynamoDbCache implements Cache {
             Map<String, AttributeValue> item = new HashMap<>();
             item.put(ATTR_CACHE_KEY, AttributeValue.builder().s(cacheKey).build());
             item.put(ATTR_VALUE, AttributeValue.builder().s(json).build());
+            item.put(ATTR_TYPE, AttributeValue.builder().s(className).build());
             item.put(ATTR_CREATED_AT, AttributeValue.builder().n(String.valueOf(now)).build());
             item.put(ATTR_EXPIRATION_TIME, AttributeValue.builder().n(String.valueOf(expirationTime)).build());
 

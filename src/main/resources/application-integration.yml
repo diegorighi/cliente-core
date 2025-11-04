@@ -26,6 +26,14 @@ spring:
     contexts: ""  # Vazio = executa apenas changesets sem context (DDL, não seeds)
     drop-first: false
 
+  # Disable cache in integration tests (use NoOpCacheManager)
+  cache:
+    type: none
+
+# Disable custom cache backend in integration tests
+cache:
+  backend: none
+
 logging:
   level:
     root: WARN

@@ -9,6 +9,7 @@ import br.com.vanessa_mudanca.cliente_core.infrastructure.util.MaskingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,12 @@ import java.util.UUID;
 /**
  * Service para buscar Cliente Pessoa Física por Public ID (UUID).
  * Utiliza Optional e programação funcional.
+ *
+ * Cache Strategy:
+ * - Cache: clientes:findById
+ * - TTL: 5 minutos (hot cache)
+ * - Key: UUID do cliente
+ * - Evict: UpdateClientePFService, DeleteClienteService
  */
 @Service
 public class FindClientePFByIdService implements FindClientePFByIdUseCase {
@@ -30,6 +37,11 @@ public class FindClientePFByIdService implements FindClientePFByIdUseCase {
     }
 
     @Override
+    @Cacheable(
+        value = "clientes:findById",
+        key = "#publicId.toString()",
+        unless = "#result == null"
+    )
     @Transactional(readOnly = true)
     public ClientePFResponse findByPublicId(UUID publicId) {
         MDC.put("operationType", "FIND_CLIENTE_PF_BY_ID");

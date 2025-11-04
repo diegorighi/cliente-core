@@ -23,6 +23,8 @@ import br.com.vanessa_mudanca.cliente_core.domain.exception.EnderecoNaoEncontrad
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarContatoPrincipalUnicoStrategy;
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarDataValidadeStrategy;
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarEnderecoPrincipalUnicoStrategy;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,11 @@ import org.springframework.transaction.annotation.Transactional;
  * PADRÃO: Aggregate Update
  * - Atualiza cliente + documentos + endereços + contatos em uma única transação
  * - Updates são seletivos (apenas itens presentes no request são atualizados)
+ *
+ * Cache Eviction Strategy:
+ * - Evict: clientes:findById (specific cliente)
+ * - Evict: clientes:list (all pages - cliente pode mudar de posição)
+ * - Nota: Não esvazia clientes:findByCpf pois CPF não pode ser alterado
  */
 @Service
 public class UpdateClientePFService implements UpdateClientePFUseCase {
@@ -64,6 +71,10 @@ public class UpdateClientePFService implements UpdateClientePFUseCase {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "clientes:findById", key = "#request.publicId().toString()"),
+        @CacheEvict(value = "clientes:list", allEntries = true)
+    })
     @Transactional
     public ClientePFResponse atualizar(UpdateClientePFRequest request) {
         // 1. Buscar cliente existente

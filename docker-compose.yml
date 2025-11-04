@@ -15,8 +15,6 @@
 #   DynamoDB Local: localhost:8000
 #   DynamoDB Admin: localhost:8001 (optional GUI)
 
-version: '3.8'
-
 services:
   # PostgreSQL 16 Database
   postgres:
@@ -44,11 +42,9 @@ services:
   dynamodb-local:
     image: amazon/dynamodb-local:latest
     container_name: cliente-core-dynamodb
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     ports:
       - "8000:8000"
-    volumes:
-      - dynamodb_data:/data
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
       interval: 10s
@@ -79,8 +75,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  dynamodb_data:
     driver: local
 
 networks:

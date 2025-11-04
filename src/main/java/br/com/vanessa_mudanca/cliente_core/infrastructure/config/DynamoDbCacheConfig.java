@@ -94,21 +94,34 @@ public class DynamoDbCacheConfig {
 
     /**
      * Cria cliente DynamoDB configurado para ambiente (local ou AWS).
+     * <p>
+     * Desenvolvimento: Usa DynamoDB Local (Docker) com credenciais fake.
+     * Produção: Usa AWS DynamoDB com DefaultCredentialsProvider (IAM Role/Profile).
+     * </p>
      *
      * @return DynamoDbClient configurado
      */
     @Bean
     public DynamoDbClient dynamoDbClient() {
         var builder = DynamoDbClient.builder()
-                .region(Region.of(awsRegion))
-                .credentialsProvider(DefaultCredentialsProvider.create());
+                .region(Region.of(awsRegion));
 
-        // Dev/Test: usar DynamoDB Local (Docker Compose)
+        // Dev/Test: usar DynamoDB Local (Docker Compose) com credenciais fake
         if (dynamoDbEndpoint != null && !dynamoDbEndpoint.isEmpty()) {
             log.info("Using DynamoDB Local endpoint: {}", dynamoDbEndpoint);
             builder.endpointOverride(URI.create(dynamoDbEndpoint));
+
+            // DynamoDB Local não valida credenciais, mas AWS SDK exige que existam
+            builder.credentialsProvider(() ->
+                software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(
+                    "fakeAccessKey",
+                    "fakeSecretKey"
+                )
+            );
         } else {
+            // Produção: usar credenciais reais (IAM Role, env vars, ou AWS profile)
             log.info("Using AWS DynamoDB in region: {}", awsRegion);
+            builder.credentialsProvider(DefaultCredentialsProvider.create());
         }
 
         return builder.build();

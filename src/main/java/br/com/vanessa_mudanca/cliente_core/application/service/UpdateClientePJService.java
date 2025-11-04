@@ -23,6 +23,8 @@ import br.com.vanessa_mudanca.cliente_core.domain.exception.EnderecoNaoEncontrad
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarContatoPrincipalUnicoStrategy;
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarDataValidadeStrategy;
 import br.com.vanessa_mudanca.cliente_core.domain.validator.ValidarEnderecoPrincipalUnicoStrategy;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 2. ✅ Fallback para valores da entidade quando DTO é parcial
  * 3. ✅ Validação de ownership (cross-client protection)
  * 4. ✅ Transaction rollback automático em caso de falha
+ *
+ * Cache Eviction Strategy:
+ * - Evict: clientes:findById (specific cliente)
+ * - Evict: clientes:list (all pages - cliente pode mudar de posição)
+ * - Nota: Não esvazia clientes:findByCnpj pois CNPJ não pode ser alterado
  */
 @Service
 public class UpdateClientePJService implements UpdateClientePJUseCase {
@@ -70,6 +77,10 @@ public class UpdateClientePJService implements UpdateClientePJUseCase {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "clientes:findById", key = "#request.publicId().toString()"),
+        @CacheEvict(value = "clientes:list", allEntries = true)
+    })
     @Transactional
     public ClientePJResponse atualizar(UpdateClientePJRequest request) {
         // 1. Buscar cliente existente

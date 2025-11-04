@@ -3,6 +3,7 @@ package br.com.vanessa_mudanca.cliente_core.infrastructure.cache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -30,8 +31,15 @@ import software.amazon.awssdk.services.dynamodb.model.*;
  *   <li>25 WCU = 25 escritas/segundo</li>
  *   <li>25 RCU = 100 leituras/segundo (4 KB cada)</li>
  * </ul>
+ *
+ * <p>
+ * <b>Nota:</b> Este componente só é carregado quando `cache.backend=dynamodb`.
+ * Nos testes (test/integration profiles), o cache é desabilitado (`cache.backend: none`)
+ * e este inicializador não será carregado.
+ * </p>
  */
 @Component
+@ConditionalOnProperty(name = "cache.backend", havingValue = "dynamodb")
 public class DynamoDbTableInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DynamoDbTableInitializer.class);

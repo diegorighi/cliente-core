@@ -52,9 +52,11 @@ cache:
   dynamodb:
     table-name: cliente-core-cache
 
-# AWS Configuration
+# AWS Configuration (DynamoDB Local - sem credenciais reais)
 aws:
   region: us-east-1
+  accessKeyId: fakeAccessKey  # Credenciais fake para DynamoDB Local
+  secretKey: fakeSecretKey    # DynamoDB Local não valida credenciais
   dynamodb:
     endpoint: http://localhost:8000  # DynamoDB Local (dev only, remove for prod)
 
