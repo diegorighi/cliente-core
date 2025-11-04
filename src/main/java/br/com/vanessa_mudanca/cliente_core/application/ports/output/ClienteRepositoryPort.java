@@ -34,4 +34,13 @@ public interface ClienteRepositoryPort {
      * @return true se existe, false caso contrário
      */
     boolean existsById(Long id);
+
+    /**
+     * Salva um cliente (qualquer tipo - PF ou PJ).
+     * Usado para operações comuns como soft delete, restauração, etc.
+     *
+     * @param cliente cliente a ser salvo
+     * @return cliente salvo
+     */
+    Cliente save(Cliente cliente);
 }

@@ -3,6 +3,7 @@ package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePJRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePJResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePJUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.DeleteClienteUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByCnpjUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePJByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePJUseCase;
@@ -58,6 +59,9 @@ class ClientePJControllerTest {
 
     @MockBean
     private UpdateClientePJUseCase updateClientePJUseCase;
+
+    @MockBean
+    private DeleteClienteUseCase deleteClienteUseCase;
 
     private ObjectMapper objectMapper;
     private CreateClientePJRequest requestValido;

@@ -35,4 +35,9 @@ public class ClienteRepositoryAdapter implements ClienteRepositoryPort {
     public boolean existsById(Long id) {
         return jpaRepository.existsById(id);
     }
+
+    @Override
+    public Cliente save(Cliente cliente) {
+        return jpaRepository.save(cliente);
+    }
 }

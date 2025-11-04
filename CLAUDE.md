@@ -454,6 +454,295 @@ mvn clean verify
 
 ---
 
+## Structured Logging & Observability
+
+### Overview
+
+O cliente-core utiliza **structured logging com JSON** para facilitar debug em ferramentas de observabilidade como **AWS CloudWatch Insights** e **Datadog**.
+
+**Componentes principais:**
+- `logback-spring.xml` - Configuração multi-ambiente (dev/prod/test)
+- `CorrelationIdFilter` - Rastreamento de requisições (X-Correlation-ID)
+- `MaskingUtil` - Mascaramento de PII (LGPD compliance)
+- SLF4J MDC - Contexto distribuído nos logs
+
+### Ambientes e Formatos
+
+**Development (profile: dev)**
+- Logs human-readable com cores no console
+- SQL queries visíveis (`show-sql: true`)
+- Level: DEBUG para aplicação, TRACE para Hibernate
+
+**Production/Staging (profile: prod, staging)**
+- Logs JSON estruturados (Logstash format)
+- SQL queries desabilitadas
+- Level: INFO para aplicação, WARN para frameworks
+- Campos customizados: `application`, `environment`, `correlationId`, `clientId`, `operationType`
+
+**Test (profile: test)**
+- Logs mínimos (apenas ERRORs)
+- Não polui output dos testes
+
+### Correlation ID
+
+Toda requisição HTTP recebe um **Correlation ID** único (UUID v4):
+
+```
+Request  →  X-Correlation-ID: 12345678-1234-1234-1234-123456789012
+Response ←  X-Correlation-ID: 12345678-1234-1234-1234-123456789012
+```
+
+**Como funciona:**
+1. `CorrelationIdFilter` intercepta requisição
+2. Verifica header `X-Correlation-ID` (se vindo de API Gateway)
+3. Se não existir, gera novo UUID
+4. Adiciona ao MDC (disponível em TODOS os logs)
+5. Adiciona ao response header (propagação para outros MS)
+6. Cleanup do MDC no finally block (evita memory leaks)
+
+**Busca no CloudWatch Insights:**
+```sql
+fields @timestamp, message, correlationId, operationType
+| filter correlationId = "12345678-1234-1234-1234-123456789012"
+| sort @timestamp desc
+```
+
+### Mascaramento de Dados Sensíveis (LGPD)
+
+**NUNCA logue dados sensíveis sem mascaramento!**
+
+Use `MaskingUtil` para mascarar PII antes de logar:
+
+```java
+import br.com.vanessa_mudanca.cliente_core.infrastructure.util.MaskingUtil;
+
+log.info("Cliente criado - CPF: {}", MaskingUtil.maskCpf("12345678910"));
+// Output: Cliente criado - CPF: ***.***.789-10
+
+log.info("Email: {}", MaskingUtil.maskEmail("joao.silva@example.com"));
+// Output: Email: jo***@example.com
+
+log.info("Telefone: {}", MaskingUtil.maskPhone("11987654321"));
+// Output: Telefone: (11) ****-4321
+```
+
+**Métodos disponíveis:**
+- `MaskingUtil.maskCpf(cpf)` - Preserva últimos 3 dígitos + DV
+- `MaskingUtil.maskCnpj(cnpj)` - Preserva últimos 4 dígitos + DV
+- `MaskingUtil.maskEmail(email)` - Preserva 2 primeiras letras
+- `MaskingUtil.maskName(nome)` - Preserva primeira letra de cada palavra
+- `MaskingUtil.maskPhone(telefone)` - Preserva 4 últimos dígitos
+- `MaskingUtil.maskGeneric(data)` - Genérico (primeiros 2 + últimos 2)
+
+### MDC (Mapped Diagnostic Context)
+
+Use MDC para adicionar contexto a TODOS os logs subsequentes:
+
+```java
+import org.slf4j.MDC;
+
+@Transactional
+public ClientePFResponse criar(CreateClientePFRequest request) {
+    MDC.put("operationType", "CREATE_CLIENTE_PF");
+
+    try {
+        log.info("Iniciando criação - CPF: {}", MaskingUtil.maskCpf(request.cpf()));
+
+        ClientePF cliente = save(...);
+
+        // Adiciona clientId após criação
+        MDC.put("clientId", cliente.getPublicId().toString());
+
+        log.info("Cliente criado com sucesso - PublicId: {}", cliente.getPublicId());
+
+        return toResponse(cliente);
+
+    } finally {
+        // CRÍTICO: sempre limpar MDC no finally
+        MDC.remove("operationType");
+        MDC.remove("clientId");
+    }
+}
+```
+
+**Campos MDC disponíveis:**
+- `correlationId` - Adicionado automaticamente pelo CorrelationIdFilter
+- `operationType` - Tipo de operação (CREATE, UPDATE, FIND, etc.)
+- `clientId` - UUID do cliente sendo processado
+- `userId` - UUID do usuário autenticado (futuro, quando auth estiver implementado)
+
+**CloudWatch query com MDC:**
+```sql
+fields @timestamp, message, clientId, operationType
+| filter clientId = "uuid-do-cliente"
+| filter operationType = "UPDATE_CLIENTE_PF"
+| sort @timestamp desc
+```
+
+### Níveis de Log
+
+**DEBUG** - Informações detalhadas para debugging (apenas em dev)
+```java
+log.debug("Buscando cliente PF por PublicId: {}", publicId);
+```
+
+**INFO** - Eventos importantes do fluxo normal
+```java
+log.info("Cliente PF criado com sucesso - PublicId: {}", publicId);
+```
+
+**WARN** - Situações anormais mas recuperáveis (validações falhadas)
+```java
+log.warn("CPF inválido - CPF: {}", MaskingUtil.maskCpf(cpf));
+```
+
+**ERROR** - Erros que impedem operação (exceções inesperadas)
+```java
+log.error("Erro ao criar cliente - CPF: {}", MaskingUtil.maskCpf(cpf), exception);
+```
+
+### Structured Arguments
+
+Use argumentos estruturados ao invés de concatenação:
+
+```java
+// ❌ BAD - Concatenação de strings
+log.info("Cliente " + publicId + " criado com CPF " + cpf);
+
+// ✅ GOOD - Argumentos estruturados
+log.info("Cliente criado - PublicId: {}, CPF: {}",
+         publicId,
+         MaskingUtil.maskCpf(cpf));
+```
+
+**Vantagens:**
+- Lazy evaluation (não processa strings se log está desabilitado)
+- CloudWatch parseia automaticamente os campos
+- Melhor performance
+
+### CloudWatch Insights Queries
+
+**Buscar erros de um cliente específico:**
+```sql
+fields @timestamp, message, severity, exception
+| filter clientId = "uuid-do-cliente"
+| filter severity = "ERROR"
+| sort @timestamp desc
+| limit 50
+```
+
+**Buscar todas operações de CREATE com sucesso:**
+```sql
+fields @timestamp, clientId, message
+| filter operationType = "CREATE_CLIENTE_PF"
+| filter message like /sucesso/
+| sort @timestamp desc
+```
+
+**Agrupar erros por tipo:**
+```sql
+fields @timestamp, message, exception
+| filter severity = "ERROR"
+| stats count() by exception
+| sort count desc
+```
+
+**Latência por operação:**
+```sql
+fields operationType, @timestamp, @duration
+| stats avg(@duration), max(@duration), count() by operationType
+| sort avg(@duration) desc
+```
+
+### Exemplos Práticos
+
+**Service Layer:**
+```java
+@Service
+public class CreateClientePFService {
+    private static final Logger log = LoggerFactory.getLogger(CreateClientePFService.class);
+
+    @Transactional
+    public ClientePFResponse criar(CreateClientePFRequest request) {
+        MDC.put("operationType", "CREATE_CLIENTE_PF");
+
+        try {
+            log.info("Iniciando criação - CPF: {}", MaskingUtil.maskCpf(request.cpf()));
+
+            validarCpf(request.cpf());
+
+            ClientePF cliente = save(request);
+            MDC.put("clientId", cliente.getPublicId().toString());
+
+            log.info("Cliente criado - PublicId: {}", cliente.getPublicId());
+
+            return toResponse(cliente);
+
+        } catch (CpfInvalidoException e) {
+            log.warn("CPF inválido - CPF: {}", MaskingUtil.maskCpf(request.cpf()));
+            throw e;
+        } catch (Exception e) {
+            log.error("Erro ao criar cliente - CPF: {}",
+                     MaskingUtil.maskCpf(request.cpf()), e);
+            throw e;
+        } finally {
+            MDC.remove("operationType");
+            MDC.remove("clientId");
+        }
+    }
+}
+```
+
+**Exception Handler:**
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(CpfInvalidoException.class)
+    public ResponseEntity<ErrorResponse> handleCpfInvalido(CpfInvalidoException e) {
+        log.warn("Validação falhou - {}", e.getMessage());
+        return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+    }
+}
+```
+
+### Testing
+
+**Testar Correlation ID:**
+```java
+@Test
+void deveAdicionarCorrelationIdAoMDC() {
+    // Verifica que MDC contém correlationId durante processamento
+    assertThat(MDC.get("correlationId")).isNotNull();
+}
+```
+
+**Testar Mascaramento:**
+```java
+@Test
+void deveMascararCpf() {
+    String resultado = MaskingUtil.maskCpf("12345678910");
+    assertThat(resultado).isEqualTo("***.***.789-10");
+}
+```
+
+### Checklist de Logging
+
+Ao criar novos services, sempre:
+
+- [ ] Declarar `private static final Logger log = LoggerFactory.getLogger()`
+- [ ] Adicionar `MDC.put("operationType", "NOME_OPERACAO")` no início
+- [ ] Usar `MaskingUtil` para mascarar CPF, CNPJ, email, nome, telefone
+- [ ] Logar início e fim de operações importantes (INFO level)
+- [ ] Logar exceções de negócio com WARN (validações falhadas)
+- [ ] Logar exceções técnicas com ERROR (incluir stack trace)
+- [ ] Limpar MDC no `finally` block (CRÍTICO!)
+- [ ] Usar argumentos estruturados, não concatenação
+- [ ] Testar que logs estão corretos e dados mascarados
+
+---
+
 ## Troubleshooting
 
 ### Application won't start - Liquibase validation error
@@ -501,22 +790,141 @@ mvn spring-boot:run
 
 ---
 
-## Integration Contracts
+## Integration Architecture (Hybrid: Step Functions + Kafka)
 
-**This microservice provides REST endpoints consumed by:**
-- `venda-core` - Query clients by ID/CPF/CNPJ
-- `financeiro-core` - Validate banking information
-- `logistica-core` - Retrieve delivery addresses
+### Overview
+
+O cliente-core utiliza **arquitetura híbrida** para integração com outros microserviços:
+
+- **Step Functions (AWS)**: Cliente-core é **chamado** por Step Functions de outros MS (validação de cliente em fluxos transacionais)
+- **Kafka (MSK)**: Cliente-core **publica** eventos quando dados mudam e **consome** eventos para atualizar métricas
+
+**📄 Documentação Completa:** `docs/INTEGRATION_ARCHITECTURE.md`
+
+### Papel do cliente-core
+
+❌ **NÃO inicia Step Functions** - Cliente-core é apenas CRUD
+✅ **É chamado POR Step Functions** - Outros MS validam se cliente existe
+✅ **Publica eventos Kafka** - Notifica quando cliente é criado/atualizado
+✅ **Consome eventos Kafka** - Atualiza métricas quando venda é concluída
+
+### Endpoints Consumidos por Step Functions
+
+Outros microserviços chamam cliente-core via Step Functions:
+
+| Endpoint | Usado Por | Quando |
+|----------|-----------|--------|
+| `GET /v1/clientes/pf/{publicId}` | venda-core | Validar comprador/vendedor antes de criar venda |
+| `GET /v1/clientes/pj/{publicId}` | venda-core | Validar empresa antes de criar venda |
+
+**Exemplo Step Function (venda-core):**
+```json
+{
+  "ValidarCompradorExiste": {
+    "Type": "Task",
+    "Resource": "arn:aws:states:::http:invoke",
+    "Parameters": {
+      "ApiEndpoint": "https://cliente-core/v1/clientes/pf/${compradorId}",
+      "Method": "GET",
+      "Headers": {
+        "X-Correlation-ID.$": "$.correlationId"
+      }
+    },
+    "Retry": [{"ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 3}],
+    "Next": "CriarVenda"
+  }
+}
+```
+
+### Eventos Kafka Publicados
+
+Cliente-core publica eventos quando o estado muda:
+
+| Topic | Event | Quando | Consumidores |
+|-------|-------|--------|--------------|
+| `cliente-events` | `ClientePFCriado` | POST /v1/clientes/pf (sucesso) | analytics-core, notificacao-core, auditoria-core |
+| `cliente-events` | `ClientePJCriado` | POST /v1/clientes/pj (sucesso) | analytics-core, notificacao-core, auditoria-core |
+| `cliente-events` | `ClientePFAtualizado` | PUT /v1/clientes/pf/{id} (sucesso) | auditoria-core, analytics-core |
+| `cliente-events` | `ClienteDeletado` | DELETE /v1/clientes/{id} (futuro) | auditoria-core |
+
+**Exemplo de Evento:**
+```json
+{
+  "eventType": "ClientePFCriado",
+  "correlationId": "abc-123",
+  "timestamp": "2025-11-03T19:00:00Z",
+  "payload": {
+    "clienteId": "uuid",
+    "cpf": "***.***.789-10",
+    "email": "jo***@example.com"
+  }
+}
+```
+
+### Eventos Kafka Consumidos
+
+Cliente-core consome eventos de outros MS para atualizar métricas:
+
+| Topic | Event | Ação |
+|-------|-------|------|
+| `venda-events` | `VendaConcluida` | Incrementa `totalVendasRealizadas` do vendedor e `totalComprasRealizadas` do comprador |
+| `venda-events` | `VendaCancelada` | Rollback das métricas (decrementa contadores) |
+
+**Consumer com Idempotência:**
+```java
+@KafkaListener(topics = "venda-events", groupId = "cliente-core-metrics-group")
+@Transactional
+public void handleVendaConcluida(VendaConcluidaEvent event) {
+    MDC.put("correlationId", event.getCorrelationId());
+
+    // Idempotência: evita processar evento duplicado
+    if (eventoProcessadoRepository.existsByEventoId(event.getVendaId())) {
+        log.warn("Evento duplicado ignorado - VendaId: {}", event.getVendaId());
+        return;
+    }
+
+    // Atualiza métricas
+    vendedor.incrementarTotalVendas(event.getValorProduto());
+    comprador.incrementarTotalCompras(event.getValorTotal());
+
+    // Marca como processado (mesma transação!)
+    eventoProcessadoRepository.save(new EventoProcessado(event.getVendaId()));
+}
+```
+
+### Correlation ID Propagation
+
+**Em Step Functions:**
+- Cliente-core RECEBE `X-Correlation-ID` no header
+- CorrelationIdFilter adiciona ao MDC automaticamente
+- Todos os logs incluem o Correlation ID
+- Response retorna o mesmo header (propagação)
+
+**Em Kafka:**
+- Producer: Correlation ID do MDC incluído no evento
+- Consumer: Correlation ID do evento adicionado ao MDC
+- CloudWatch: Rastreamento completo da jornada
+
+**Query CloudWatch (jornada completa):**
+```sql
+fields @timestamp, @message, correlationId, service
+| filter correlationId = "abc-123"
+| sort @timestamp asc
+```
+
+### Integration Contracts
 
 **Response format:** JSON
 **Authentication:** OAuth2 + JWT (to be implemented)
-**Versioning:** URI versioning `/v1/clientes/pf` (to be implemented)
+**Versioning:** URI versioning `/v1/clientes/pf`
+**Idempotency:** Via `X-Idempotency-Key` header (to be implemented)
 
 **When creating endpoints:**
 - Return DTOs, not entities (avoid exposing JPA internals)
 - Use proper HTTP status codes (200, 201, 400, 404, 500)
 - Include pagination for list endpoints
 - Implement filtering and sorting parameters
+- Add `X-Correlation-ID` to all responses
 
 ---
 

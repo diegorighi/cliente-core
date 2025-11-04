@@ -96,6 +96,16 @@ public abstract class Cliente {
     @Column(name = "usuario_bloqueou", length = 100)
     private String usuarioBloqueou;
 
+    // Soft Delete
+    @Column(name = "data_delecao")
+    private LocalDateTime dataDelecao;
+
+    @Column(name = "motivo_delecao", length = 500)
+    private String motivoDelecao;
+
+    @Column(name = "usuario_deletou", length = 100)
+    private String usuarioDeletou;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id")
     @Builder.Default
@@ -143,6 +153,25 @@ public abstract class Cliente {
     @PreUpdate
     protected void onUpdate() {
         this.dataAtualizacao = LocalDateTime.now();
+    }
+
+    // Métodos de Soft Delete
+    public void deletar(String motivo, String usuario) {
+        this.ativo = false;
+        this.dataDelecao = LocalDateTime.now();
+        this.motivoDelecao = motivo;
+        this.usuarioDeletou = usuario;
+    }
+
+    public void restaurar(String usuario) {
+        this.ativo = true;
+        this.dataDelecao = null;
+        this.motivoDelecao = null;
+        this.usuarioDeletou = null;
+    }
+
+    public boolean isDeletado() {
+        return !this.ativo && this.dataDelecao != null;
     }
 
     // Métodos auxiliares para gerenciar listas

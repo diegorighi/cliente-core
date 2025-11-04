@@ -56,9 +56,34 @@ public interface ClientePJRepositoryPort {
 
     /**
      * Lista todos os clientes pessoa jurídica com paginação.
+     * ATENÇÃO: Inclui clientes deletados (soft delete).
      *
      * @param pageable configuração de paginação e ordenação
      * @return página com clientes PJ
      */
     Page<ClientePJ> findAll(Pageable pageable);
+
+    /**
+     * Busca cliente PJ ATIVO (não deletado) por CNPJ.
+     *
+     * @param cnpj CNPJ do cliente
+     * @return Optional contendo o cliente se encontrado e ativo
+     */
+    Optional<ClientePJ> findActiveByCnpj(String cnpj);
+
+    /**
+     * Busca cliente PJ ATIVO (não deletado) por Public ID.
+     *
+     * @param publicId UUID público do cliente
+     * @return Optional contendo o cliente se encontrado e ativo
+     */
+    Optional<ClientePJ> findActiveByPublicId(UUID publicId);
+
+    /**
+     * Verifica se existe cliente PJ ATIVO com o CNPJ informado.
+     *
+     * @param cnpj CNPJ a verificar
+     * @return true se existe cliente ativo, false caso contrário
+     */
+    boolean existsActiveByCnpj(String cnpj);
 }

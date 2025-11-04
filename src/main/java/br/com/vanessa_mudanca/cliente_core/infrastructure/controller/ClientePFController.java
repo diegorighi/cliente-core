@@ -5,6 +5,7 @@ import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePF
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.PageResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePFUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.DeleteClienteUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByCpfUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePFUseCase;
@@ -40,18 +41,21 @@ public class ClientePFController {
     private final FindClientePFByIdUseCase findClientePFByIdUseCase;
     private final FindClientePFByCpfUseCase findClientePFByCpfUseCase;
     private final ListClientePFUseCase listClientePFUseCase;
+    private final DeleteClienteUseCase deleteClienteUseCase;
 
     public ClientePFController(
             CreateClientePFUseCase createClientePFUseCase,
             UpdateClientePFUseCase updateClientePFUseCase,
             FindClientePFByIdUseCase findClientePFByIdUseCase,
             FindClientePFByCpfUseCase findClientePFByCpfUseCase,
-            ListClientePFUseCase listClientePFUseCase) {
+            ListClientePFUseCase listClientePFUseCase,
+            DeleteClienteUseCase deleteClienteUseCase) {
         this.createClientePFUseCase = createClientePFUseCase;
         this.updateClientePFUseCase = updateClientePFUseCase;
         this.findClientePFByIdUseCase = findClientePFByIdUseCase;
         this.findClientePFByCpfUseCase = findClientePFByCpfUseCase;
         this.listClientePFUseCase = listClientePFUseCase;
+        this.deleteClienteUseCase = deleteClienteUseCase;
     }
 
     @PostMapping
@@ -154,5 +158,43 @@ public class ClientePFController {
 
         ClientePFResponse response = updateClientePFUseCase.atualizar(requestComId);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{publicId}")
+    @Operation(
+            summary = "Deletar cliente PF (soft delete)",
+            description = "Realiza soft delete do cliente PF. O cliente é marcado como inativo (ativo=false) e preserva todos os dados para auditoria. " +
+                    "Requer motivo e identificação do usuário responsável pela deleção."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Cliente deletado com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
+            @ApiResponse(responseCode = "409", description = "Cliente já foi deletado anteriormente")
+    })
+    public ResponseEntity<Void> deletar(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            @Parameter(description = "Motivo da deleção", required = true) @RequestParam String motivo,
+            @Parameter(description = "Usuário responsável pela deleção", required = true) @RequestParam String usuario) {
+
+        deleteClienteUseCase.deletar(publicId, motivo, usuario);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{publicId}/restaurar")
+    @Operation(
+            summary = "Restaurar cliente PF deletado",
+            description = "Restaura um cliente PF que foi deletado (soft delete). " +
+                    "O cliente volta ao estado ativo (ativo=true) e limpa os campos de deleção."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Cliente restaurado com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
+    })
+    public ResponseEntity<Void> restaurar(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            @Parameter(description = "Usuário responsável pela restauração", required = true) @RequestParam String usuario) {
+
+        deleteClienteUseCase.restaurar(publicId, usuario);
+        return ResponseEntity.noContent().build();
     }
 }

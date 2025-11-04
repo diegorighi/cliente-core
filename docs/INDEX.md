@@ -18,6 +18,7 @@
 - [📊 Test Results](#test-results)
 
 ### For Product/Business
+- [🗺️ Product Roadmap](#product-roadmap)
 - [🎯 Feature Summary](#feature-summary)
 - [📈 Business Rules](#business-rules)
 
@@ -212,6 +213,82 @@ mvn clean verify                            # With coverage
 
 ---
 
+## 🔗 Integration Architecture
+
+### Hybrid Architecture: Step Functions + Kafka
+
+**📄 INTEGRATION_ARCHITECTURE.md**
+- **Location:** `/docs/INTEGRATION_ARCHITECTURE.md`
+- **Created:** 2025-11-03
+- **Status:** 🟢 APPROVED - DOCUMENTED
+- **Content:**
+  - **Hybrid integration pattern** (Step Functions + Kafka)
+  - **Architectural decision rationale** (comparison table)
+  - **Step Functions usage** - cliente-core is CALLED by other MS
+  - **Kafka events published** - ClientePFCriado, ClientePJCriado, ClientePFAtualizado
+  - **Kafka events consumed** - VendaConcluida, VendaCancelada
+  - **Idempotency implementation** - eventos_processados table
+  - **Correlation ID propagation** - HTTP headers + Kafka payload
+  - **Event schemas** - Complete JSON structures
+  - **CloudWatch queries** - Full-journey tracing examples
+  - **Integration diagrams** - Visual flows
+- **Key Decisions:**
+  - ✅ **Step Functions** for synchronous transactions (SAGA pattern with rollback)
+  - ✅ **Kafka** for asynchronous event propagation (analytics, metrics, notifications)
+  - ✅ **cliente-core does NOT initiate Step Functions** (only CRUD)
+  - ✅ **Idempotency mandatory** for both patterns
+  - ✅ **Correlation ID** propagated across all integrations
+- **Audience:** Developers, Architects, DevOps
+- **Size:** 600+ lines (comprehensive)
+
+---
+
+## 🗺️ Product Roadmap
+
+### Q4 2025 Technical Roadmap
+
+**📄 ROADMAP_2025_Q4.md**
+- **Location:** `/docs/ROADMAP_2025_Q4.md`
+- **Created:** 2025-11-03
+- **Status:** 🟢 APPROVED
+- **Content:**
+  - **5 strategic features** (64 hours total effort)
+    1. DELETE Cliente (Soft Delete) - 6h
+    2. Advanced Search (PostgreSQL Full-Text) - 14h
+    3. Export Data (CSV/PDF) - 14h
+    4. Kafka Event Integration (Analytics) - 24h
+    5. Structured Logging (JSON) - 6h
+  - **Technical decisions** with justifications
+    - PostgreSQL > ElasticSearch (for search)
+    - Kafka MSK > SNS/SQS (for events)
+    - Transactional Outbox Pattern (event reliability)
+  - **Implementation timeline:** 10 days (2 weeks)
+  - **Cost estimation:** +$445/month (AWS infrastructure)
+  - **35 new files + 16 modifications**
+  - **Risks & mitigations** documented
+  - **Success metrics** defined
+- **Key Insights:**
+  - 🎯 **No ElasticSearch needed** - GIN indexes already implemented
+  - 🎯 **Kafka MSK recommended** - Event replay critical for analytics
+  - 🎯 **Logging first** - Foundation for debugging other features
+- **Audience:** Tech Leads, Product Managers, Stakeholders
+- **Size:** 8,500+ lines (comprehensive)
+
+### Implementation Order (Recommended)
+
+```
+Week 1: Foundation
+├─ Day 1: Logging JSON (enables debugging)
+├─ Day 2: DELETE (completes CRUD)
+└─ Day 3-4: Search (high user demand)
+
+Week 2: Integration
+├─ Day 5-6: Export CSV/PDF
+└─ Day 7-10: Kafka Events
+```
+
+---
+
 ## 🎯 Feature Summary
 
 ### Complete UPDATE Features Documentation
@@ -301,6 +378,7 @@ cliente-core/
 ├── docs/
 │   ├── INDEX.md                       # This file - Complete index
 │   ├── UPDATE_FEATURES_SUMMARY.md     # UPDATE features complete summary
+│   ├── ROADMAP_2025_Q4.md            # 🆕 Technical roadmap (5 features, 64h)
 │   └── qa/
 │       ├── UPDATE_CLIENTEPF_TEST_PLAN.md    # 32 test scenarios (PF)
 │       ├── UPDATE_CLIENTEPJ_TEST_PLAN.md    # 32 test scenarios (PJ)
@@ -314,8 +392,8 @@ cliente-core/
 ```
 
 **Total Documentation:**
-- 5 main documents
-- ~3,500 lines of documentation
+- 6 main documents (+ ROADMAP)
+- ~12,000 lines of documentation
 - 64 test scenarios
 - 92 unit tests
 
@@ -333,6 +411,9 @@ cliente-core/
 
 **...understand the UPDATE feature**
 → Read `docs/UPDATE_FEATURES_SUMMARY.md`
+
+**...see the product roadmap (next features)**
+→ Read `docs/ROADMAP_2025_Q4.md`
 
 **...run QA tests for UPDATE PF**
 → Read `docs/qa/UPDATE_CLIENTEPF_TEST_PLAN.md`

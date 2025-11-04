@@ -52,4 +52,19 @@ public class ClientePJRepositoryAdapter implements ClientePJRepositoryPort {
     public Page<ClientePJ> findAll(Pageable pageable) {
         return jpaRepository.findAll(pageable);
     }
+
+    @Override
+    public Optional<ClientePJ> findActiveByCnpj(String cnpj) {
+        return jpaRepository.findByCnpjAndAtivoTrueAndDataDelecaoIsNull(cnpj);
+    }
+
+    @Override
+    public Optional<ClientePJ> findActiveByPublicId(UUID publicId) {
+        return jpaRepository.findByPublicIdAndAtivoTrueAndDataDelecaoIsNull(publicId);
+    }
+
+    @Override
+    public boolean existsActiveByCnpj(String cnpj) {
+        return jpaRepository.existsByCnpjAndAtivoTrueAndDataDelecaoIsNull(cnpj);
+    }
 }

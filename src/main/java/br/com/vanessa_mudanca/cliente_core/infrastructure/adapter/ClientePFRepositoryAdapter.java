@@ -52,4 +52,19 @@ public class ClientePFRepositoryAdapter implements ClientePFRepositoryPort {
     public Page<ClientePF> findAll(Pageable pageable) {
         return jpaRepository.findAll(pageable);
     }
+
+    @Override
+    public Optional<ClientePF> findActiveByCpf(String cpf) {
+        return jpaRepository.findByCpfAndAtivoTrueAndDataDelecaoIsNull(cpf);
+    }
+
+    @Override
+    public Optional<ClientePF> findActiveByPublicId(UUID publicId) {
+        return jpaRepository.findByPublicIdAndAtivoTrueAndDataDelecaoIsNull(publicId);
+    }
+
+    @Override
+    public boolean existsActiveByCpf(String cpf) {
+        return jpaRepository.existsByCpfAndAtivoTrueAndDataDelecaoIsNull(cpf);
+    }
 }

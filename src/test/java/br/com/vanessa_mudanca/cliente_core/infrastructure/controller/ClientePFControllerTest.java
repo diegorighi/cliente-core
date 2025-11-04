@@ -3,6 +3,7 @@ package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePFRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePFUseCase;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.DeleteClienteUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByCpfUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByIdUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.ListClientePFUseCase;
@@ -59,6 +60,9 @@ class ClientePFControllerTest {
 
     @MockBean
     private UpdateClientePFUseCase updateClientePFUseCase;
+
+    @MockBean
+    private DeleteClienteUseCase deleteClienteUseCase;
 
     private ObjectMapper objectMapper;
     private CreateClientePFRequest requestValido;

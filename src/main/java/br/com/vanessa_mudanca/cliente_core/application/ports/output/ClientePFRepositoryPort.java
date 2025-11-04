@@ -56,9 +56,34 @@ public interface ClientePFRepositoryPort {
 
     /**
      * Lista todos os clientes pessoa física com paginação.
+     * ATENÇÃO: Inclui clientes deletados (soft delete).
      *
      * @param pageable configuração de paginação e ordenação
      * @return página com clientes PF
      */
     Page<ClientePF> findAll(Pageable pageable);
+
+    /**
+     * Busca cliente PF ATIVO (não deletado) por CPF.
+     *
+     * @param cpf CPF do cliente
+     * @return Optional contendo o cliente se encontrado e ativo
+     */
+    Optional<ClientePF> findActiveByCpf(String cpf);
+
+    /**
+     * Busca cliente PF ATIVO (não deletado) por Public ID.
+     *
+     * @param publicId UUID público do cliente
+     * @return Optional contendo o cliente se encontrado e ativo
+     */
+    Optional<ClientePF> findActiveByPublicId(UUID publicId);
+
+    /**
+     * Verifica se existe cliente PF ATIVO com o CPF informado.
+     *
+     * @param cpf CPF a verificar
+     * @return true se existe cliente ativo, false caso contrário
+     */
+    boolean existsActiveByCpf(String cpf);
 }

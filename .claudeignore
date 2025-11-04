@@ -1,0 +1,269 @@
+# .claudeignore - Cliente-Core Microservice
+# Arquivos e diretórios que Claude Code deve ignorar
+# Criado: 2025-11-03
+
+# ============================================
+# Build Outputs & Dependencies
+# ============================================
+
+# Maven build directory
+target/
+!target/classes/application*.yml
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Node modules (se houver frontend futuramente)
+node_modules/
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+dist/
+nbdist/
+
+# ============================================
+# OS Files
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# ============================================
+# Logs & Temporary Files
+# ============================================
+
+# Application logs
+logs/
+*.log
+*.log.*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.cache
+
+# ============================================
+# Database Files (local development)
+# ============================================
+
+# H2 Database (se usar para testes)
+*.db
+*.trace.db
+*.lock.db
+
+# PostgreSQL dumps
+*.sql.gz
+*.dump
+/database-dumps/
+
+# ============================================
+# Test Coverage & Reports
+# ============================================
+
+# JaCoCo coverage
+target/site/jacoco/
+*.exec
+
+# SonarQube
+.sonar/
+.scannerwork/
+
+# Test reports
+**/surefire-reports/
+**/failsafe-reports/
+
+# ============================================
+# Docker & Container Files
+# ============================================
+
+# Docker volumes (se houver)
+docker-volumes/
+*.pid
+
+# ============================================
+# Secrets & Credentials
+# ============================================
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.*.local
+
+# Credentials
+**/credentials.json
+**/secrets.yml
+**/*-credentials.*
+**/*-secrets.*
+
+# AWS credentials
+.aws/
+aws-credentials.*
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+
+# ============================================
+# Large Binary Files
+# ============================================
+
+# JAR files (except Maven wrapper)
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# WAR files
+*.war
+*.ear
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# ============================================
+# Documentation (Heavy Files)
+# ============================================
+
+# Large seed files (já processados pelo Liquibase)
+**/seed-*.sql
+# Exceção: manter changesets pequenos
+!**/db/changelog/sql/dml/00*.sql
+
+# Generated documentation
+docs/generated/
+site/
+
+# ============================================
+# Git Files
+# ============================================
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# ============================================
+# CI/CD & Infrastructure
+# ============================================
+
+# Terraform state
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes
+*.kubeconfig
+
+# ============================================
+# Security Scan Results
+# ============================================
+
+# Dependency check reports
+dependency-check-report.*
+owasp-dependency-check/
+
+# ============================================
+# Performance & Profiling
+# ============================================
+
+# JVM profiling
+*.hprof
+*.prof
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+# Package files
+*.dmg
+*.iso
+*.msi
+
+# Compiled class files (already in target/)
+*.class
+
+# ============================================
+# Project-Specific Exclusions
+# ============================================
+
+# Documentação volumosa (Claude lê INDEX.md para referência)
+# Removido: Agora todos os docs são importantes e bem organizados
+
+# Testes de integração pesados (se houver)
+**/integration-test-data/
+
+# Arquivos de exemplo/template (não código real)
+**/examples/
+**/templates/
+**/samples/
+
+# ============================================
+# NOTAS IMPORTANTES
+# ============================================
+
+# 1. Claude TEM ACESSO a:
+#    - README.md (documentação principal)
+#    - CLAUDE.md (guia do assistente)
+#    - docs/ (toda documentação organizada)
+#    - src/ (todo código-fonte)
+#    - pom.xml (dependências)
+#    - application*.yml (configurações)
+#    - db/changelog/ (Liquibase DDL - sem seeds pesados)
+
+# 2. Claude NÃO TEM ACESSO a:
+#    - target/ (build output)
+#    - .idea/ (IDE files)
+#    - logs/ (arquivos de log)
+#    - Secrets/credentials
+#    - Binários (.jar, .war)
+
+# 3. Para consultar documentação:
+#    - Sempre começar lendo docs/INDEX.md
+#    - INDEX.md tem links para todos os documentos
+#    - Roadmap: docs/ROADMAP_2025_Q4.md
+#    - QA Plans: docs/qa/
+
+# ============================================
+# Última atualização: 2025-11-03
+# Mantido por: Tech Lead
+# ============================================

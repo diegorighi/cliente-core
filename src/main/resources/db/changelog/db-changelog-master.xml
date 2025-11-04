@@ -204,6 +204,24 @@
         </rollback>
     </changeSet>
 
+    <!-- 13. Adiciona colunas de Soft Delete -->
+    <changeSet id="013-add-soft-delete-columns" author="tech-lead">
+        <comment>Adiciona campos data_delecao, motivo_delecao e usuario_deletou para soft delete</comment>
+        <sqlFile
+            path="db/changelog/sql/ddl/013-add-soft-delete-columns.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DROP INDEX IF EXISTS idx_clientes_data_delecao;
+            DROP INDEX IF EXISTS idx_clientes_ativo_data_delecao;
+            ALTER TABLE clientes DROP COLUMN IF EXISTS data_delecao;
+            ALTER TABLE clientes DROP COLUMN IF EXISTS motivo_delecao;
+            ALTER TABLE clientes DROP COLUMN IF EXISTS usuario_deletou;
+        </rollback>
+    </changeSet>
+
     <!-- ========================================== -->
     <!-- DML: SEEDS PARA MASSA DE TESTE             -->
     <!-- ========================================== -->

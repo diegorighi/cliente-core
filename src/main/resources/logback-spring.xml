@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Include Spring Boot's default configuration -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Property for log pattern (human-readable for dev) -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %X{correlationId:- } %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <!-- Development Profile: Human-readable console logs -->
+    <springProfile name="dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- Application-specific logs at DEBUG level -->
+        <logger name="br.com.vanessa_mudanca.cliente_core" level="DEBUG"/>
+
+        <!-- SQL logs (useful for development) -->
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    </springProfile>
+
+    <!-- Production Profile: JSON structured logs for CloudWatch/Datadog -->
+    <springProfile name="prod,staging">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Add custom fields to every log entry -->
+                <customFields>{"application":"cliente-core","environment":"${spring.profiles.active:-unknown}"}</customFields>
+
+                <!-- Include MDC (Mapped Diagnostic Context) fields like correlationId -->
+                <includeMdcKeyName>correlationId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>clientId</includeMdcKeyName>
+                <includeMdcKeyName>operationType</includeMdcKeyName>
+
+                <!-- Include caller data (class, method, line number) -->
+                <includeCallerData>true</includeCallerData>
+
+                <!-- Include stack trace -->
+                <includeStackTrace>true</includeStackTrace>
+
+                <!-- Field names customization for CloudWatch/Datadog -->
+                <fieldNames>
+                    <timestamp>@timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <message>message</message>
+                    <logger>logger_name</logger>
+                    <thread>thread_name</thread>
+                    <level>severity</level>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+
+                <!-- Shorten logger names for readability -->
+                <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+
+        <!-- Application logs at INFO level (no SQL in prod) -->
+        <logger name="br.com.vanessa_mudanca.cliente_core" level="INFO"/>
+
+        <!-- Suppress noisy framework logs -->
+        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="com.zaxxer.hikari" level="WARN"/>
+    </springProfile>
+
+    <!-- Test Profile: Minimal logging to avoid cluttering test output -->
+    <springProfile name="test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- Only log application errors during tests -->
+        <logger name="br.com.vanessa_mudanca.cliente_core" level="ERROR"/>
+    </springProfile>
+
+    <!-- Async logging for performance (optional, enable in prod if needed) -->
+    <!--
+    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="JSON_CONSOLE"/>
+    </appender>
+    -->
+</configuration>

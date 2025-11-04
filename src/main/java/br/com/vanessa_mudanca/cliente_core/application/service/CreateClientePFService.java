@@ -12,6 +12,10 @@ import br.com.vanessa_mudanca.cliente_core.domain.exception.ClienteIndicadorNaoE
 import br.com.vanessa_mudanca.cliente_core.domain.exception.CpfInvalidoException;
 import br.com.vanessa_mudanca.cliente_core.domain.exception.CpfJaCadastradoException;
 import br.com.vanessa_mudanca.cliente_core.domain.validator.DocumentoValidator;
+import br.com.vanessa_mudanca.cliente_core.infrastructure.util.MaskingUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,8 @@ import java.util.UUID;
  */
 @Service
 public class CreateClientePFService implements CreateClientePFUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(CreateClientePFService.class);
 
     private final ClientePFRepositoryPort clientePFRepository;
     private final ClienteRepositoryPort clienteRepository;
@@ -37,23 +43,60 @@ public class CreateClientePFService implements CreateClientePFUseCase {
     @Override
     @Transactional
     public ClientePFResponse criar(CreateClientePFRequest request) {
-        // 1. Validar CPF
-        validarCpf(request.cpf());
+        // Adiciona contexto ao MDC para rastreamento
+        MDC.put("operationType", "CREATE_CLIENTE_PF");
 
-        // 2. Verificar se CPF já existe
-        verificarCpfDuplicado(request.cpf());
+        try {
+            log.info("Iniciando criação de cliente PF - CPF: {}, Email: {}",
+                    MaskingUtil.maskCpf(request.cpf()),
+                    MaskingUtil.maskEmail(request.email()));
 
-        // 3. Buscar cliente indicador (se informado)
-        Cliente clienteIndicador = buscarClienteIndicador(request.clienteIndicadorId());
+            // 1. Validar CPF
+            validarCpf(request.cpf());
 
-        // 4. Converter DTO para Entity
-        ClientePF clientePF = ClientePFMapper.toEntity(request, clienteIndicador);
+            // 2. Verificar se CPF já existe
+            verificarCpfDuplicado(request.cpf());
 
-        // 5. Salvar no banco
-        ClientePF clienteSalvo = clientePFRepository.save(clientePF);
+            // 3. Buscar cliente indicador (se informado)
+            Cliente clienteIndicador = buscarClienteIndicador(request.clienteIndicadorId());
 
-        // 6. Converter Entity para Response
-        return ClientePFMapper.toResponse(clienteSalvo);
+            // 4. Converter DTO para Entity
+            ClientePF clientePF = ClientePFMapper.toEntity(request, clienteIndicador);
+
+            // 5. Salvar no banco
+            ClientePF clienteSalvo = clientePFRepository.save(clientePF);
+
+            // Adiciona clientId ao MDC para logs subsequentes
+            MDC.put("clientId", clienteSalvo.getPublicId().toString());
+
+            log.info("Cliente PF criado com sucesso - PublicId: {}, CPF: {}",
+                    clienteSalvo.getPublicId(),
+                    MaskingUtil.maskCpf(clienteSalvo.getCpf()));
+
+            // 6. Converter Entity para Response
+            return ClientePFMapper.toResponse(clienteSalvo);
+
+        } catch (CpfInvalidoException | CpfJaCadastradoException e) {
+            log.warn("Falha na validação do CPF - CPF: {}, Erro: {}",
+                    MaskingUtil.maskCpf(request.cpf()),
+                    e.getMessage());
+            throw e;
+        } catch (ClienteIndicadorNaoEncontradoException e) {
+            log.warn("Cliente indicador não encontrado - IndicadorId: {}, Erro: {}",
+                    request.clienteIndicadorId(),
+                    e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Erro inesperado ao criar cliente PF - CPF: {}, Erro: {}",
+                    MaskingUtil.maskCpf(request.cpf()),
+                    e.getMessage(),
+                    e);
+            throw e;
+        } finally {
+            // Remove contexto do MDC (cleanup)
+            MDC.remove("operationType");
+            MDC.remove("clientId");
+        }
     }
 
     private void validarCpf(String cpf) {

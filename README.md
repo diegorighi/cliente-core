@@ -139,6 +139,17 @@ cliente-core/src/main/java/br/com/vanessa_mudanca/cliente_core/
 - `dataBloqueio` (LocalDateTime)
 - `usuarioBloqueou` (String, 100)
 
+**Soft Delete (Deleção Lógica):**
+- `dataDelecao` (LocalDateTime) - Data/hora da deleção lógica
+- `motivoDelecao` (String, 500) - Motivo da exclusão
+- `usuarioDeletou` (String, 100) - Usuário que realizou a deleção
+
+> **IMPORTANTE:** Este microserviço implementa **soft delete pattern**. Clientes NÃO são deletados fisicamente do banco de dados. Quando deletados:
+> - Campo `ativo` é alterado para `false`
+> - Campos `dataDelecao`, `motivoDelecao` e `usuarioDeletou` são preenchidos
+> - Dados são preservados para auditoria e podem ser restaurados
+> - Queries normais filtram automaticamente clientes deletados (via métodos `findActive*`)
+
 **Relacionamentos:**
 - `listaDocumentos` (OneToMany → Documento)
 - `listaContatos` (OneToMany → Contato)
@@ -155,6 +166,9 @@ cliente-core/src/main/java/br/com/vanessa_mudanca/cliente_core/
 - `removerEndereco(Endereco)`
 - `adicionarDadosBancarios(DadosBancarios)`
 - `removerDadosBancarios(DadosBancarios)`
+- `deletar(String motivo, String usuario)` - Realiza soft delete
+- `restaurar(String usuario)` - Restaura cliente deletado
+- `isDeletado()` - Verifica se cliente está deletado
 
 ---
 
@@ -440,25 +454,37 @@ Todos os estados brasileiros (AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG
 
 ## 🔌 Endpoints
 
-### Status: 🚧 A IMPLEMENTAR
-
-Os seguintes endpoints serão implementados:
+### Status: ✅ IMPLEMENTADO (CRUD Completo + Soft Delete)
 
 #### Clientes PF
-- `GET /api/clientes/pf` - Listar clientes PF
-- `GET /api/clientes/pf/{id}` - Buscar cliente PF por ID
-- `POST /api/clientes/pf` - Criar cliente PF
-- `PUT /api/clientes/pf/{id}` - Atualizar cliente PF
-- `DELETE /api/clientes/pf/{id}` - Deletar (soft delete) cliente PF
-- `GET /api/clientes/pf/cpf/{cpf}` - Buscar por CPF
+- ✅ `GET /v1/clientes/pf` - Listar clientes PF (paginado)
+- ✅ `GET /v1/clientes/pf/{publicId}` - Buscar cliente PF por UUID público
+- ✅ `GET /v1/clientes/pf/cpf/{cpf}` - Buscar por CPF
+- ✅ `POST /v1/clientes/pf` - Criar cliente PF
+- ✅ `PUT /v1/clientes/pf/{publicId}` - Atualizar cliente PF (suporta atualização parcial)
+- ✅ `DELETE /v1/clientes/pf/{publicId}` - **Soft delete** cliente PF
+  - **Query params obrigatórios:** `motivo` (String), `usuario` (String)
+  - **Retorno:** 204 No Content
+  - **Exceções:** 404 (não encontrado), 409 (já deletado)
+- ✅ `POST /v1/clientes/pf/{publicId}/restaurar` - Restaurar cliente PF deletado
+  - **Query param obrigatório:** `usuario` (String)
+  - **Retorno:** 204 No Content
+  - **Exceção:** 404 (não encontrado)
 
 #### Clientes PJ
-- `GET /api/clientes/pj` - Listar clientes PJ
-- `GET /api/clientes/pj/{id}` - Buscar cliente PJ por ID
-- `POST /api/clientes/pj` - Criar cliente PJ
-- `PUT /api/clientes/pj/{id}` - Atualizar cliente PJ
-- `DELETE /api/clientes/pj/{id}` - Deletar (soft delete) cliente PJ
-- `GET /api/clientes/pj/cnpj/{cnpj}` - Buscar por CNPJ
+- ✅ `GET /v1/clientes/pj` - Listar clientes PJ (paginado)
+- ✅ `GET /v1/clientes/pj/{publicId}` - Buscar cliente PJ por UUID público
+- ✅ `GET /v1/clientes/pj/cnpj/{cnpj}` - Buscar por CNPJ
+- ✅ `POST /v1/clientes/pj` - Criar cliente PJ
+- ✅ `PUT /v1/clientes/pj/{publicId}` - Atualizar cliente PJ (suporta atualização parcial)
+- ✅ `DELETE /v1/clientes/pj/{publicId}` - **Soft delete** cliente PJ
+  - **Query params obrigatórios:** `motivo` (String), `usuario` (String)
+  - **Retorno:** 204 No Content
+  - **Exceções:** 404 (não encontrado), 409 (já deletado)
+- ✅ `POST /v1/clientes/pj/{publicId}/restaurar` - Restaurar cliente PJ deletado
+  - **Query param obrigatório:** `usuario` (String)
+  - **Retorno:** 204 No Content
+  - **Exceção:** 404 (não encontrado)
 
 #### Documentos
 - `POST /api/clientes/{clienteId}/documentos` - Adicionar documento
@@ -519,6 +545,17 @@ Os seguintes endpoints serão implementados:
 8. **Auditoria** deve registrar todas alterações críticas (CPF, CNPJ, dados bancários) ⭐ NOVO
 9. **Bloqueio de cliente** impede novas transações ⭐ NOVO
 10. **Programa de indicação:** Cliente que indica recebe recompensa apenas uma vez por indicado ⭐ NOVO
+
+### Soft Delete (Deleção Lógica) ✅ IMPLEMENTADO
+1. **Não há deleção física:** Clientes NUNCA são removidos do banco de dados
+2. **Preservação de dados:** Todos os dados são mantidos para auditoria e conformidade legal
+3. **Restauração:** Clientes deletados podem ser restaurados a qualquer momento
+4. **Validação de duplicidade:** Não é possível deletar cliente já deletado (retorna 409 Conflict)
+5. **Queries filtradas automáticas:**
+   - Métodos `findActive*` retornam apenas clientes ativos
+   - Métodos sem prefixo `Active` retornam TODOS os clientes (incluindo deletados)
+6. **Auditoria obrigatória:** Motivo e usuário responsável são obrigatórios na deleção
+7. **Integridade referencial:** Relacionamentos são preservados mesmo após deleção
 
 ---
 
@@ -608,13 +645,101 @@ liquibase:
 
 ## 🧪 Testes
 
-### Status: 🚧 A IMPLEMENTAR
+### Status: ✅ 155 TESTES IMPLEMENTADOS
 
-Serão implementados testes para:
-- Validações de CPF/CNPJ
-- Regras de negócio de documentos/contatos/endereços
-- Endpoints REST
-- Integração com banco de dados
+**Cobertura Atual:**
+- ✅ **Validações de CPF/CNPJ** (26 testes - DocumentoValidator)
+- ✅ **Services de Cliente PF** (28 testes)
+- ✅ **Services de Cliente PJ** (30 testes)
+- ✅ **Soft Delete** (21 testes - DeleteClienteService + Repository)
+- ✅ **Controllers REST** (6 testes - ClientePF e ClientePJ)
+- ✅ **Utilitários** (42 testes - MaskingUtil, CorrelationId)
+- ✅ **Integração** (2 testes - Application Context)
+
+**Executar testes:**
+```bash
+# Todos os testes
+mvn test
+
+# Teste específico
+mvn test -Dtest=DeleteClienteServiceTest
+
+# Com cobertura
+mvn clean verify
+```
+
+**Total: 155 testes passando** ✅
+
+---
+
+## 💡 Exemplos de Uso - Soft Delete
+
+### Exemplo 1: Deletar Cliente PF
+
+**Request:**
+```bash
+DELETE http://localhost:8081/api/clientes/v1/clientes/pf/550e8400-e29b-41d4-a716-446655440000?motivo=Cliente%20solicitou%20exclus%C3%A3o&usuario=admin
+```
+
+**Response:**
+```
+204 No Content
+```
+
+**O que acontece:**
+1. Campo `ativo` alterado para `false`
+2. Campo `dataDelecao` preenchido com timestamp atual
+3. Campo `motivoDelecao` = "Cliente solicitou exclusão"
+4. Campo `usuarioDeletou` = "admin"
+5. Dados preservados no banco para auditoria
+
+### Exemplo 2: Restaurar Cliente Deletado
+
+**Request:**
+```bash
+POST http://localhost:8081/api/clientes/v1/clientes/pf/550e8400-e29b-41d4-a716-446655440000/restaurar?usuario=supervisor
+```
+
+**Response:**
+```
+204 No Content
+```
+
+**O que acontece:**
+1. Campo `ativo` alterado para `true`
+2. Campos `dataDelecao`, `motivoDelecao`, `usuarioDeletou` limpos (null)
+3. Cliente volta a aparecer nas queries normais
+
+### Exemplo 3: Uso de Queries Filtradas no Código
+
+```java
+// Buscar APENAS clientes ativos (uso normal em APIs públicas)
+Optional<ClientePF> ativo = clientePFRepository.findActiveByCpf("12345678909");
+
+// Buscar TODOS (incluindo deletados) - para auditoria/restauração
+Optional<ClientePF> qualquer = clientePFRepository.findByCpf("12345678909");
+
+// Verificar se CPF está em uso por cliente ATIVO
+boolean cpfEmUso = clientePFRepository.existsActiveByCpf("12345678909");
+```
+
+### Exemplo 4: Tratamento de Erros
+
+**Tentativa de deletar cliente já deletado:**
+```bash
+DELETE .../550e8400-e29b-41d4-a716-446655440000?motivo=Teste&usuario=admin
+```
+
+**Response:**
+```json
+{
+  "timestamp": "2025-11-03T20:00:00",
+  "status": 409,
+  "error": "Conflict",
+  "message": "Cliente com PublicId 550e8400-e29b-41d4-a716-446655440000 já foi deletado anteriormente",
+  "path": "/v1/clientes/pf/550e8400-e29b-41d4-a716-446655440000"
+}
+```
 
 ---
 
@@ -728,7 +853,34 @@ Para mais detalhes sobre a estrutura do banco de dados, consulte:
 
 ## 📝 Histórico de Mudanças
 
-### 2025-11-02 - Versão 0.1.0 (Noite) ⭐ NOVA VERSÃO
+### 2025-11-03 - Versão 0.2.0 ⭐ SOFT DELETE IMPLEMENTADO
+- ✅ **Soft Delete Pattern** implementado completamente:
+  - Campos `dataDelecao`, `motivoDelecao`, `usuarioDeletou` adicionados à entidade Cliente
+  - Métodos de domínio: `deletar()`, `restaurar()`, `isDeletado()`
+  - Liquibase changeset `013-add-soft-delete-columns.sql` com índices otimizados
+- ✅ **Use Cases e Services:**
+  - `DeleteClienteUseCase` com operações `deletar()` e `restaurar()`
+  - `DeleteClienteService` com logging estruturado (MDC)
+  - `ClienteJaDeletadoException` para validação de duplicidade
+- ✅ **Endpoints REST:**
+  - `DELETE /v1/clientes/{pf|pj}/{publicId}` - Soft delete com motivo e usuário
+  - `POST /v1/clientes/{pf|pj}/{publicId}/restaurar` - Restauração de clientes
+  - Retorno 204 No Content, exceções 404/409 adequadas
+- ✅ **Queries Filtradas (Dual-Method Pattern):**
+  - Métodos `findActive*` retornam apenas registros ativos
+  - Métodos sem prefixo retornam TODOS (incluindo deletados)
+  - Implementado em: ClientePF e ClientePJ repositories
+  - Exemplos: `findActiveByCpf()`, `findActiveByPublicId()`, `existsActiveByCpf()`
+- ✅ **Testes Completos (21 novos testes):**
+  - 12 testes unitários (DeleteClienteServiceTest)
+  - 9 testes de integração (ClientePFRepositoryAdapterSoftDeleteTest)
+  - **Total: 155 testes passando** (aumento de 134 → 155)
+- ✅ **Documentação atualizada:**
+  - README com seções de Soft Delete
+  - Regras de negócio documentadas
+  - Endpoints documentados com exemplos
+
+### 2025-11-02 - Versão 0.1.0 (Noite)
 - ✅ **Liquibase** implementado para gerenciamento de schema PostgreSQL
 - ✅ **20 scripts SQL** criados (11 DDL + 8 DML seeds + 1 master XML)
 - ✅ **~50 índices otimizados** para RDS PostgreSQL:
@@ -784,6 +936,69 @@ Para mais detalhes sobre a estrutura do banco de dados, consulte:
 - ✅ Configuração de herança JOINED para clientes
 - ✅ Implementação de timestamps automáticos
 - ✅ README inicial criado
+
+---
+
+## 🔗 Integração com Outros Microserviços
+
+### Arquitetura Híbrida: Step Functions + Kafka
+
+O cliente-core utiliza **arquitetura híbrida** para integração:
+
+- **AWS Step Functions**: Cliente-core é **chamado** por outros MS (validação síncrona)
+- **Apache Kafka (MSK)**: Cliente-core **publica/consome** eventos (propagação assíncrona)
+
+**📄 Documentação Completa:** `docs/INTEGRATION_ARCHITECTURE.md`
+
+### Papel do cliente-core
+
+| Padrão | Uso | Exemplo |
+|--------|-----|---------|
+| **Step Functions** | ❌ NÃO inicia | Cliente-core é apenas CRUD |
+| **Step Functions** | ✅ É chamado | `venda-core` valida se cliente existe antes de criar venda |
+| **Kafka Producer** | ✅ Publica eventos | Notifica quando cliente é criado/atualizado |
+| **Kafka Consumer** | ✅ Consome eventos | Atualiza métricas quando venda é concluída |
+
+### Eventos Kafka Publicados
+
+**Topic:** `cliente-events`
+
+| Evento | Quando | Consumidores |
+|--------|--------|--------------|
+| `ClientePFCriado` | POST /v1/clientes/pf (sucesso) | analytics-core, notificacao-core, auditoria-core |
+| `ClientePJCriado` | POST /v1/clientes/pj (sucesso) | analytics-core, notificacao-core, auditoria-core |
+| `ClientePFAtualizado` | PUT /v1/clientes/pf/{id} (sucesso) | auditoria-core, analytics-core |
+| `ClienteDeletado` | DELETE /v1/clientes/{id} (futuro) | auditoria-core |
+
+### Eventos Kafka Consumidos
+
+**Topic:** `venda-events`
+**Consumer Group:** `cliente-core-metrics-group`
+
+| Evento | Ação |
+|--------|------|
+| `VendaConcluida` | Incrementa `totalVendasRealizadas` (vendedor) e `totalComprasRealizadas` (comprador) |
+| `VendaCancelada` | Rollback das métricas (decrementa contadores) |
+
+### Correlation ID
+
+Todos os eventos e chamadas HTTP incluem **Correlation ID** para rastreamento:
+
+- Header HTTP: `X-Correlation-ID`
+- Payload Kafka: `event.correlationId`
+- Logs CloudWatch: Campo `correlationId` em todos os logs
+
+**Query CloudWatch (rastreamento completo):**
+```sql
+fields @timestamp, @message, correlationId, service
+| filter correlationId = "abc-123"
+| sort @timestamp asc
+```
+
+### Idempotência
+
+**Kafka:** Implementado via tabela `eventos_processados` (evita processar evento duplicado)
+**HTTP:** Via header `X-Idempotency-Key` (a ser implementado em Feature DELETE)
 
 ---
 
