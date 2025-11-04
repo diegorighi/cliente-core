@@ -1,0 +1,181 @@
+name: Performance Tests (JMeter)
+
+on:
+  # Executar em PRs que modificam código
+  pull_request:
+    paths:
+      - 'src/main/**'
+      - 'pom.xml'
+
+  # Executar manualmente
+  workflow_dispatch:
+    inputs:
+      load_level:
+        description: 'Load level'
+        required: true
+        default: 'low'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+
+  # Segunda-feira 2h (monitoramento)
+  schedule:
+    - cron: '0 2 * * 1'
+
+jobs:
+  performance-test:
+    name: JMeter Load Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Install JMeter
+        run: |
+          wget -q https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz
+          tar -xzf apache-jmeter-5.6.3.tgz
+          echo "$PWD/apache-jmeter-5.6.3/bin" >> $GITHUB_PATH
+
+      - name: Build application
+        run: mvn clean package -DskipTests
+
+      - name: Start application
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+        run: |
+          java -jar target/cliente-core-*.jar \
+            --spring.datasource.url=$SPRING_DATASOURCE_URL \
+            --spring.datasource.username=$SPRING_DATASOURCE_USERNAME \
+            --spring.datasource.password=$SPRING_DATASOURCE_PASSWORD \
+            --server.port=8081 &
+
+          # Aguardar inicialização (max 60s)
+          for i in {1..30}; do
+            if curl -f http://localhost:8081/api/clientes/actuator/health > /dev/null 2>&1; then
+              echo "✅ Application started"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Create test data
+        run: |
+          cd src/test/jmeter/scripts
+          chmod +x setup-test-data.sh
+          ./setup-test-data.sh 20
+
+      - name: Run JMeter test
+        env:
+          LOAD_LEVEL: ${{ github.event.inputs.load_level || 'low' }}
+        run: |
+          cd src/test/jmeter
+
+          # Configurar carga baseado no input
+          case "$LOAD_LEVEL" in
+            low)    USERS=10;  RAMPUP=5 ;;
+            medium) USERS=50;  RAMPUP=10 ;;
+            high)   USERS=100; RAMPUP=20 ;;
+          esac
+
+          # Executar teste
+          jmeter -n -t UpdateClientePF_LoadTest.jmx \
+            -Jusers=$USERS \
+            -Jrampup=$RAMPUP \
+            -Jloops=10 \
+            -l results/test.jtl \
+            -e -o results/report
+
+      - name: Validate SLA
+        id: sla
+        run: |
+          cd src/test/jmeter/results
+
+          JTL="test.jtl"
+          TOTAL=$(tail -n +2 "$JTL" | wc -l | xargs)
+          ERRORS=$(awk -F',' '$8=="false"' "$JTL" | wc -l | xargs)
+          ERROR_RATE=$(awk "BEGIN {printf \"%.2f\", ($ERRORS / $TOTAL) * 100}")
+          AVG_TIME=$(awk -F',' 'NR>1 {sum+=$2} END {printf "%.0f", sum/(NR-1)}' "$JTL")
+          P95=$(awk -F',' 'NR>1 {print $2}' "$JTL" | sort -n | awk '{a[NR]=$1} END{print a[int(NR*0.95)]}')
+
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+          echo "avg_time=$AVG_TIME" >> $GITHUB_OUTPUT
+          echo "p95=$P95" >> $GITHUB_OUTPUT
+
+          # Validar
+          PASS=true
+          [ $(echo "$ERROR_RATE > 5" | bc) -eq 1 ] && PASS=false
+          [ $(echo "$AVG_TIME > 500" | bc) -eq 1 ] && PASS=false
+          [ $(echo "$P95 > 1000" | bc) -eq 1 ] && PASS=false
+
+          echo "sla_pass=$PASS" >> $GITHUB_OUTPUT
+
+          if [ "$PASS" = "false" ]; then
+            echo "❌ SLA FAIL"
+            exit 1
+          fi
+          echo "✅ SLA PASS"
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jmeter-report
+          path: src/test/jmeter/results/report/
+          retention-days: 30
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && always()
+        env:
+          ERROR_RATE: ${{ steps.sla.outputs.error_rate }}
+          AVG_TIME: ${{ steps.sla.outputs.avg_time }}
+          P95: ${{ steps.sla.outputs.p95 }}
+          SLA_PASS: ${{ steps.sla.outputs.sla_pass }}
+        with:
+          script: |
+            const { ERROR_RATE, AVG_TIME, P95, SLA_PASS } = process.env;
+            const emoji = SLA_PASS === 'true' ? '✅' : '❌';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ${emoji} Performance Test
+
+              | Metric | Value | SLA | Status |
+              |--------|-------|-----|--------|
+              | Error Rate | ${ERROR_RATE}% | < 5% | ${parseFloat(ERROR_RATE) < 5 ? '✅' : '❌'} |
+              | Avg Time | ${AVG_TIME}ms | < 500ms | ${parseInt(AVG_TIME) < 500 ? '✅' : '❌'} |
+              | 95th %ile | ${P95}ms | < 1000ms | ${parseInt(P95) < 1000 ? '✅' : '❌'} |
+
+              📊 [Full Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });

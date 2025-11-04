@@ -1,0 +1,23 @@
+# JMeter - Ignorar resultados e relatórios
+# Apenas versionar planos de teste (.jmx) e scripts
+
+# Resultados dos testes (podem ser grandes)
+results/
+*.jtl
+*.log
+
+# Relatórios HTML gerados
+report-*/
+
+# Dados de teste gerados dinamicamente
+data/clientes_pf_testdata.csv
+data/clientes_pj_testdata.csv
+
+# Backups e temporários
+*.bak
+*.tmp
+*~
+
+# Logs de execução
+jmeter.log
+jmeter-server.log
