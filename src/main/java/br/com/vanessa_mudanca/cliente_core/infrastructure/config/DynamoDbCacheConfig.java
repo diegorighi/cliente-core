@@ -61,7 +61,7 @@ import java.util.Map;
  * @see org.springframework.cache.annotation.Cacheable
  */
 @Configuration
-@ConditionalOnProperty(name = "cache.backend", havingValue = "dynamodb", matchIfMissing = true)
+@ConditionalOnProperty(name = "cache.backend", havingValue = "dynamodb")
 public class DynamoDbCacheConfig {
 
     private static final Logger log = LoggerFactory.getLogger(DynamoDbCacheConfig.class);
