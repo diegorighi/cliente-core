@@ -1,0 +1,121 @@
+# ========================================
+# Example Terraform Variables
+# Copy to terraform.tfvars and customize
+# ========================================
+# IMPORTANT: terraform.tfvars is gitignored
+# Never commit sensitive values!
+# ========================================
+
+# ========================================
+# General Configuration
+# ========================================
+
+project_name = "cliente-core"
+environment  = "prod"
+aws_region   = "us-east-1"
+
+# ========================================
+# VPC Configuration
+# ========================================
+
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+# Cost optimization: single NAT Gateway (not HA)
+# For production HA: set single_nat_gateway = false
+enable_nat_gateway = true
+single_nat_gateway = true
+
+# ========================================
+# RDS Configuration
+# ========================================
+
+# Instance sizing (MVP cost-optimized)
+# Upgrade path: db.t4g.micro → db.t4g.small → db.r6g.large
+db_instance_class        = "db.t4g.micro"
+db_allocated_storage     = 20
+db_max_allocated_storage = 100
+
+# Database credentials
+db_name     = "vanessa_mudanca_clientes"
+db_username = "clientecore_admin"
+# Password is auto-generated and stored in Secrets Manager
+
+# Backup configuration
+db_backup_retention_period = 7
+db_backup_window           = "03:00-04:00"      # UTC
+db_maintenance_window      = "mon:04:00-mon:05:00" # UTC
+
+# High availability (disabled for MVP)
+# For production: set db_multi_az = true
+db_multi_az = false
+
+# ========================================
+# ECS Configuration
+# ========================================
+
+# Task sizing (MVP baseline)
+# Upgrade path: 512/1024 → 1024/2048 → 2048/4096
+ecs_task_cpu    = 512   # 0.5 vCPU
+ecs_task_memory = 1024  # 1 GB
+
+# Container configuration
+container_port = 8080 # Spring Boot default port
+
+# Auto-scaling configuration
+ecs_desired_count     = 2  # Minimum 2 for HA
+ecs_min_capacity      = 2
+ecs_max_capacity      = 4
+autoscaling_target_cpu    = 70 # Scale up when CPU > 70%
+autoscaling_target_memory = 80 # Scale up when Memory > 80%
+
+# ========================================
+# ALB Configuration
+# ========================================
+
+health_check_path     = "/api/clientes/actuator/health"
+health_check_interval = 30
+health_check_timeout  = 5
+healthy_threshold     = 2
+unhealthy_threshold   = 3
+deregistration_delay  = 30
+
+# ========================================
+# CloudWatch Configuration
+# ========================================
+
+cloudwatch_retention_days = 7 # Upgrade to 30 for production
+
+# ========================================
+# ECR Configuration
+# ========================================
+
+ecr_image_tag_mutability = "MUTABLE"
+ecr_scan_on_push         = true
+ecr_lifecycle_count      = 5
+
+# ========================================
+# Cost Optimization Notes
+# ========================================
+#
+# Current configuration (MVP):
+# - Single NAT Gateway (~$32/month)
+# - db.t4g.micro (~$12/month)
+# - 2x Fargate tasks 512/1024 (~$25/month)
+# - ALB (~$16/month)
+# - Estimated total: ~$85-100/month
+#
+# Production upgrade recommendations:
+# - Enable Multi-AZ RDS (2x cost)
+# - Use 2 NAT Gateways for HA (2x cost)
+# - Scale to db.t4g.small or db.r6g.large
+# - Increase ECS capacity to 1024/2048
+# - Expected production cost: ~$250-350/month
+#
+# Cost savings opportunities:
+# - Reserved Instances for RDS (40% savings)
+# - Fargate Savings Plans (50% savings)
+# - CloudWatch Logs compression
+# - S3 lifecycle policies for backups
+#
+# ========================================

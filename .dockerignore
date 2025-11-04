@@ -1,0 +1,51 @@
+# Maven
+target/
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# Git
+.git/
+.gitignore
+
+# Terraform
+terraform/
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Documentation
+README.md
+CLAUDE.md
+docs/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Tests
+src/test/

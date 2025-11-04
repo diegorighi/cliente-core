@@ -42,6 +42,22 @@ spring:
     livereload:
       enabled: true
 
+  # Cache Configuration (DynamoDB for MVP - Free Tier)
+  cache:
+    type: none  # Custom CacheManager via @Bean (DynamoDbCacheManager)
+
+# Cache backend selection (dynamodb or redis)
+cache:
+  backend: dynamodb  # Use DynamoDB for MVP (Free Tier $0/month)
+  dynamodb:
+    table-name: cliente-core-cache
+
+# AWS Configuration
+aws:
+  region: us-east-1
+  dynamodb:
+    endpoint: http://localhost:8000  # DynamoDB Local (dev only, remove for prod)
+
 logging:
   level:
     root: INFO
