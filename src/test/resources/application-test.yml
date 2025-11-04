@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Cria schema automaticamente nos testes
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  liquibase:
+    enabled: false  # Desabilita Liquibase nos testes (schema vem do JPA)
+
+  sql:
+    init:
+      mode: never  # Não executa scripts SQL de inicialização
+
+# Logging (mínimo para testes)
+logging:
+  level:
+    root: ERROR
+    br.com.vanessa_mudanca.cliente_core: ERROR
+    org.springframework: ERROR
+    org.hibernate: ERROR
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
