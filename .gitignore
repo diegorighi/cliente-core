@@ -31,3 +31,5 @@ build/
 
 ### VS Code ###
 .vscode/
+# Maven wrapper with absolute paths (user-specific)
+mvn-vanessa.sh
