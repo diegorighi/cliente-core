@@ -69,6 +69,29 @@
 
 ## 🔧 Development Workflows
 
+### Maven Configuration
+
+**📄 MAVEN_SETTINGS.md**
+- **Location:** `/docs/MAVEN_SETTINGS.md`
+- **Created:** 2025-11-03
+- **Status:** ✅ CONFIGURED
+- **Content:**
+  - **Repositório ativo:** Maven Central (não Porto Seguro)
+  - **Arquivos disponíveis:**
+    - `settings.xml` - Maven Central (ATIVO)
+    - `settings_porto_seguro.xml` - Nexus corporativo
+    - `settings_old.xml` - Backup Maven Central
+  - **Como trocar configurações**
+  - **Verificar config ativa**
+  - **Troubleshooting:** Cache inválido, plugin não encontrado
+  - **Política do projeto:** Apenas repositórios públicos
+- **Key Decisions:**
+  - ✅ **Maven Central HTTPS** como padrão
+  - ❌ **Nexus Porto Seguro** não deve ser usado
+  - ✅ **Snapshots** via central.sonatype.com
+- **Audience:** Developers, DevOps
+- **Size:** 150+ lines
+
 ### Feature Implementation
 
 **Workflow Documented in:** `CLAUDE.md` → "QA Testing Strategy"
@@ -379,6 +402,10 @@ cliente-core/
 │   ├── INDEX.md                       # This file - Complete index
 │   ├── UPDATE_FEATURES_SUMMARY.md     # UPDATE features complete summary
 │   ├── ROADMAP_2025_Q4.md            # 🆕 Technical roadmap (5 features, 64h)
+│   ├── INTEGRATION_ARCHITECTURE.md    # Integration patterns (Step Functions + Kafka)
+│   ├── MAVEN_SETTINGS.md             # 🆕 Maven configuration guide
+│   ├── LIQUIBASE_QUICKSTART.md       # Database migration quick start
+│   ├── LIQUIBASE_STRUCTURE.md        # Liquibase organization
 │   └── qa/
 │       ├── UPDATE_CLIENTEPF_TEST_PLAN.md    # 32 test scenarios (PF)
 │       ├── UPDATE_CLIENTEPJ_TEST_PLAN.md    # 32 test scenarios (PJ)
