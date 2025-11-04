@@ -1,0 +1,82 @@
+# Docker Compose for cliente-core Local Development
+#
+# This compose file provides all infrastructure dependencies for local development:
+# - PostgreSQL 16 database
+# - DynamoDB Local (cache backend for MVP - Free Tier)
+#
+# Usage:
+#   Start all services:     docker-compose up -d
+#   Stop all services:      docker-compose down
+#   View logs:              docker-compose logs -f
+#   Reset everything:       docker-compose down -v
+#
+# Services will be available at:
+#   PostgreSQL:    localhost:5432
+#   DynamoDB Local: localhost:8000
+#   DynamoDB Admin: localhost:8001 (optional GUI)
+
+services:
+  # PostgreSQL 16 Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: cliente-core-postgres
+    environment:
+      POSTGRES_DB: vanessa_mudanca_clientes
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: senha123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d vanessa_mudanca_clientes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cliente-core-network
+    restart: unless-stopped
+
+  # DynamoDB Local (Cache backend for MVP - Free Tier equivalent)
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: cliente-core-dynamodb
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cliente-core-network
+    restart: unless-stopped
+
+  # DynamoDB Admin (Optional - DynamoDB GUI for debugging)
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: cliente-core-dynamodb-admin
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+    ports:
+      - "8001:8001"
+    depends_on:
+      - dynamodb-local
+    networks:
+      - cliente-core-network
+    restart: unless-stopped
+    profiles:
+      - debug  # Only starts with: docker-compose --profile debug up
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cliente-core-network:
+    driver: bridge

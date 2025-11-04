@@ -29,6 +29,14 @@ spring:
     drop-first: true
     default-schema: public
 
+  # Disable cache in tests (use NoOpCacheManager)
+  cache:
+    type: none
+
+# Disable custom cache backend in tests
+cache:
+  backend: none
+
 logging:
   level:
     root: ERROR

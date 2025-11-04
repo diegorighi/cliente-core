@@ -1,0 +1,54 @@
+# GitGuardian configuration for cliente-core
+# Whitelist legitimate test/development credentials that are NOT security risks
+
+version: 2
+
+# Paths to ignore (don't scan these at all)
+paths-ignore:
+  - '**/target/**'
+  - '**/node_modules/**'
+  - '**/.mvn/**'
+  - '**/build/**'
+
+# Specific secrets to ignore (with justification)
+matches-ignore:
+  # PostgreSQL development credentials (hardcoded for local dev only)
+  - name: PostgreSQL senha123
+    match: senha123
+    reason: "Local development password only - not used in production"
+
+  - name: DynamoDB Local fake credentials
+    match: fakeAccessKey
+    reason: "Fake credentials for DynamoDB Local - required by AWS SDK but not validated"
+
+  - name: DynamoDB Local fake credentials
+    match: fakeSecretKey
+    reason: "Fake credentials for DynamoDB Local - required by AWS SDK but not validated"
+
+  - name: DynamoDB Admin dummy credentials
+    match: dummy
+    reason: "Dummy credentials for DynamoDB Admin GUI - local dev tool only"
+
+  - name: Integration test credentials
+    match: test
+    reason: "TestContainers integration test credentials - ephemeral containers only"
+
+# Specific files to allow with hardcoded secrets (development only)
+# These files contain credentials ONLY for local development
+exclude:
+  - "docker-compose.yml"          # Local PostgreSQL/DynamoDB credentials
+  - "application-dev.yml"          # Development profile only
+  - "application-integration.yml"  # Integration tests only
+  - "setup-local.sh"               # Local dev script
+  - ".github/workflows/developer-with-jmeter.yml"  # CI/CD uses ephemeral databases
+  - ".github/workflows/release-with-loadtest.yml"  # CI/CD uses ephemeral databases
+
+# Production files that MUST NOT have hardcoded secrets
+# (GitGuardian will still alert if these contain secrets)
+paths-to-scan:
+  - "application-prod.yml"
+  - "application-hml.yml"
+  - "application-staging.yml"
+  - "Dockerfile"
+  - "kubernetes/**"
+  - "terraform/**"

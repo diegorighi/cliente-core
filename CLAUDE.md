@@ -331,6 +331,69 @@ mvn clean verify
 
 **Coverage target:** Minimum 80%
 
+**⚠️ MANDATORY POLICY: Test Coverage**
+
+**CRITICAL:** Every new feature implementation MUST maintain or improve code coverage to at least 80%.
+
+**When implementing new features:**
+
+1. **Before coding:** Check current coverage baseline
+   ```bash
+   mvn clean test
+   python3 << 'EOF'
+   import xml.etree.ElementTree as ET
+   tree = ET.parse('target/site/jacoco/jacoco.xml')
+   root = tree.getroot()
+   for counter in root.findall('.//counter[@type="INSTRUCTION"]'):
+       missed, covered = int(counter.get('missed')), int(counter.get('covered'))
+   print(f"Coverage: {covered/(missed+covered)*100:.2f}%")
+   EOF
+   ```
+
+2. **During coding:** Write tests FIRST (TDD approach)
+   - Unit tests for business logic
+   - Integration tests for database operations
+   - API tests for controller endpoints
+
+3. **After coding:** Verify coverage INCREASED or maintained at 80%+
+   ```bash
+   mvn clean test
+   # Check coverage report at: target/site/jacoco/index.html
+   ```
+
+4. **If coverage < 80%:** DO NOT commit/push code
+   - Identify uncovered lines in JaCoCo report
+   - Write missing tests
+   - Re-run tests until threshold is met
+
+**Why 80%?**
+- Industry standard for production code
+- Ensures critical business logic is tested
+- Prevents regression bugs
+- Forces thinking about edge cases
+
+**What counts toward coverage:**
+- Service layer methods (business logic)
+- Repository adapters
+- Controllers (endpoint handling)
+- Validators
+- Mappers/DTOs
+
+**What is excluded:**
+- Configuration classes (@Configuration)
+- Entity classes (domain models)
+- Main application class
+- POJOs without logic
+
+**Current coverage:** 80%+ ✅ (250 tests passing)
+**JaCoCo check:** PASSING (excludes infrastructure/config and infrastructure/cache)
+**Classes analyzed:** 74 of 82 (8 infrastructure classes excluded)
+**Last checked:** 2025-11-04
+
+**Excluded from coverage:**
+- `infrastructure/config/**` - Spring @Configuration classes (hard to unit test)
+- `infrastructure/cache/**` - DynamoDB cache implementation (infrastructure, not business logic)
+
 ### QA Testing Strategy
 
 **When implementing new features, ALWAYS follow this workflow:**

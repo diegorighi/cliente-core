@@ -1,0 +1,190 @@
+# ========================================
+# AWS Free Tier Configuration Example
+# cliente-core Infrastructure
+# ========================================
+#
+# This configuration maximizes AWS Free Tier benefits for the first 12 months.
+#
+# AWS Free Tier Includes (12 months):
+# - RDS: 750 hours/month of db.t3.micro (Single-AZ) = $0
+# - EC2/ECS: Free Tier does NOT cover Fargate, but this config minimizes Fargate costs
+# - S3: 5GB standard storage = $0
+# - CloudWatch: 10 custom metrics, 5GB logs = $0
+# - Data Transfer: 100GB/month outbound = $0
+# - ALB: 750 hours/month (always-on) = $0 for first 15GB processed
+#
+# IMPORTANT: Always-free tier (after 12 months):
+# - Lambda: 1M requests/month, 400K GB-seconds compute
+# - CloudWatch: 10 custom metrics, 5GB logs, 1M API requests
+# - Data Transfer: 100GB/month outbound
+#
+# Estimated Monthly Cost with Free Tier: $35-45
+# - RDS db.t3.micro: $0 (750h free tier)
+# - ECS Fargate (1 task): $15-18
+# - ALB: $0-5 (depends on traffic, 750h + 15GB free)
+# - NAT Gateway: $16-20
+# - CloudWatch: $0 (under free tier limits)
+# - Secrets Manager: $0.40/secret = $0.40
+# - Data Transfer: $0 (under 100GB)
+#
+# After Free Tier Expires (month 13+): $55-70/month
+# - RDS db.t3.micro: $12-15
+# - Other costs remain the same
+#
+# Copy this file to terraform.tfvars and customize:
+# cp terraform.tfvars.freetier terraform.tfvars
+
+# ========================================
+# General Configuration
+# ========================================
+
+project_name       = "cliente-core"
+environment        = "dev"
+aws_region         = "us-east-1"
+enable_free_tier   = true  # CRITICAL: Enables Free Tier optimizations
+
+# ========================================
+# VPC Configuration
+# ========================================
+
+vpc_cidr            = "10.0.0.0/16"
+availability_zones  = ["us-east-1a", "us-east-1b"]  # Multi-AZ for networking
+enable_nat_gateway  = true   # Required for ECS tasks to pull images
+single_nat_gateway  = true   # COST OPTIMIZATION: Single NAT saves $32/month
+
+# ========================================
+# RDS Configuration (Free Tier)
+# ========================================
+
+db_instance_class           = "db.t3.micro"  # FREE TIER: 750 hours/month (Single-AZ)
+db_allocated_storage        = 20             # FREE TIER: Up to 20GB gp2/gp3 storage
+db_max_allocated_storage    = 20             # COST CONTROL: Disable autoscaling for Free Tier
+db_name                     = "vanessa_mudanca_clientes"
+db_username                 = "clientecore_admin"
+db_backup_retention_period  = 1              # COST OPTIMIZATION: 1 day (vs 7 days)
+db_backup_window            = "03:00-04:00"
+db_maintenance_window       = "mon:04:00-mon:05:00"
+db_multi_az                 = false          # CRITICAL: Must be Single-AZ for Free Tier
+
+# ========================================
+# ECS Configuration (Minimal Fargate)
+# ========================================
+#
+# NOTE: AWS Free Tier does NOT include Fargate.
+# To minimize costs, we use:
+# - 1 task (vs 2 for HA)
+# - Minimum CPU/Memory (256 CPU, 512 MB)
+#
+# Alternative: Use EC2 t3.micro (750h free tier) with ECS EC2 launch type
+# But Fargate is simpler for MVP (no server management)
+
+ecs_task_cpu               = 256   # COST OPTIMIZATION: 0.25 vCPU (minimum)
+ecs_task_memory            = 512   # COST OPTIMIZATION: 512 MB (minimum for Spring Boot)
+container_port             = 8080
+ecs_desired_count          = 1     # COST OPTIMIZATION: 1 task (no HA, saves $15-18/month)
+ecs_min_capacity           = 1     # Auto-scaling disabled (Free Tier)
+ecs_max_capacity           = 2     # Emergency scale-up only
+autoscaling_target_cpu     = 80    # Higher threshold (less scaling)
+autoscaling_target_memory  = 85
+
+# ========================================
+# ALB Configuration
+# ========================================
+#
+# ALB Free Tier: 750 hours/month + 15GB data processed
+# After that: $0.0225/hour ($16/month) + $0.008/GB processed
+
+health_check_path       = "/api/clientes/actuator/health"
+health_check_interval   = 60   # COST OPTIMIZATION: Less frequent checks (vs 30s)
+health_check_timeout    = 10   # Longer timeout for slower t3.micro RDS
+healthy_threshold       = 2
+unhealthy_threshold     = 3
+deregistration_delay    = 30
+
+# ========================================
+# CloudWatch Configuration
+# ========================================
+#
+# Free Tier: 5GB logs ingestion, 10 custom metrics
+# Our config uses ~2-3GB/month logs, 8 custom metrics = FREE
+
+cloudwatch_retention_days = 3   # COST OPTIMIZATION: 3 days (vs 7 days)
+
+# ========================================
+# ECR Configuration
+# ========================================
+#
+# Free Tier: 500MB storage/month
+# Our Spring Boot image ~250MB = FREE
+
+ecr_image_tag_mutability = "MUTABLE"
+ecr_scan_on_push         = true
+ecr_lifecycle_count      = 3   # COST OPTIMIZATION: Keep only 3 images (vs 5)
+
+# ========================================
+# Tags
+# ========================================
+
+tags = {
+  Project     = "Va Nessa Mudanca"
+  Component   = "cliente-core"
+  Environment = "dev"
+  ManagedBy   = "Terraform"
+  CostCenter  = "Engineering"
+  FreeTier    = "true"  # Track Free Tier resources
+}
+
+# ========================================
+# Cost Optimization Notes
+# ========================================
+#
+# Current Config Estimated Cost: $35-45/month
+#
+# Breakdown:
+# - RDS db.t3.micro (Single-AZ): $0 (Free Tier)
+# - ECS Fargate (1 task, 256 CPU, 512 MB): $15-18
+#   - 730 hours/month * $0.04048/vCPU-hour * 0.25 vCPU = $7.39
+#   - 730 hours/month * $0.004445/GB-hour * 0.5 GB = $1.62
+#   - Total: ~$9/task = $15-18 with overhead
+# - ALB: $0-5 (750h free + 15GB free, then $0.0225/hour)
+# - NAT Gateway: $16-20
+#   - $0.045/hour * 730 hours = $32.85
+#   - BUT: $0.045/GB processed (first 10TB) - varies by traffic
+# - CloudWatch Logs: $0 (under 5GB free tier)
+# - Secrets Manager: $0.40/secret
+# - Data Transfer: $0 (under 100GB free tier)
+#
+# After Free Tier Expires (Month 13+):
+# - RDS db.t3.micro: +$12-15/month
+# - Total: $55-70/month
+#
+# Ways to Reduce Costs Further:
+#
+# 1. Use EC2 t3.micro instead of Fargate (saves $15-18/month):
+#    - EC2 t3.micro: 750 hours/month FREE (12 months)
+#    - But requires managing EC2 instances, AMI updates, etc.
+#    - Tradeoff: Complexity vs Cost
+#
+# 2. Use VPC Endpoints for ECR/CloudWatch (saves NAT Gateway costs):
+#    - VPC Endpoint: $0.01/hour = $7.30/month
+#    - Saves: $32.85 - $7.30 = $25/month
+#    - Requires configuring 3+ endpoints (ECR API, ECR DKR, CloudWatch)
+#
+# 3. Run application only during business hours (8h/day, 5 days/week):
+#    - 160 hours/month (vs 730 hours)
+#    - Fargate: $3-4/month (vs $15-18)
+#    - ALB: $0 (under free tier)
+#    - NAT: $7/month (vs $16-20)
+#    - Total: $15-25/month
+#    - Tradeoff: Application downtime outside business hours
+#
+# 4. Use RDS Snapshot + Restore instead of always-on database:
+#    - Snapshot storage: $0.095/GB-month (~$2/month for 20GB)
+#    - Restore time: 5-10 minutes
+#    - Saves: $12-15/month (no running RDS instance)
+#    - Tradeoff: Manual restore process, downtime
+#
+# Recommended for MVP: Keep current config ($35-45/month)
+# - Simple, managed, always-on
+# - Good developer experience
+# - After validation, optimize based on usage patterns
