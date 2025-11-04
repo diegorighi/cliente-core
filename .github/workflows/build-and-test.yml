@@ -33,7 +33,8 @@ jobs:
           files: ./target/site/jacoco/jacoco.xml
           flags: unittests
           name: codecov-cliente-core
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+        continue-on-error: true
 
   build:
     runs-on: ubuntu-latest
