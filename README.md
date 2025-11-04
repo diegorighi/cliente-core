@@ -5,6 +5,39 @@ Microserviço responsável pelo gerenciamento completo de clientes (Pessoa Físi
 
 Este serviço é o núcleo do cadastro de clientes, gerenciando informações pessoais, documentos, contatos e endereços tanto para pessoas físicas quanto jurídicas.
 
+## 🚀 Quick Start
+
+```bash
+./setup-local.sh
+```
+
+Este comando único configura todo o ambiente local (PostgreSQL + DynamoDB + aplicação + testes).
+
+**Tempo:** ~2 minutos | **Documentação completa:** [docs/README-QUICK-START.md](docs/README-QUICK-START.md)
+
+## 📚 Documentação
+
+### Setup & Desenvolvimento
+- **[Quick Start](docs/README-QUICK-START.md)** - Comece aqui (1 página)
+- **[Setup Local Completo](docs/setup/COMO_SUBIR_LOCAL_STACK.md)** - Guia detalhado
+- **[Resumo do Setup](docs/setup/SETUP_LOCAL_SUMMARY.md)** - O que foi implementado
+- **[Desenvolvimento Local](docs/setup/LOCAL_DEVELOPMENT.md)** - Workflows diários
+
+### Arquitetura & Features
+- **[Virtual Threads](docs/development/VIRTUAL_THREADS.md)** - Java 21 concurrency
+- **[DynamoDB Cache](docs/cache/DYNAMODB_CACHE_SUMMARY.md)** - Estratégia de cache
+- **[Liquibase Structure](docs/LIQUIBASE_STRUCTURE.md)** - Schema management
+- **[Integration Architecture](docs/INTEGRATION_ARCHITECTURE.md)** - Kafka + Step Functions
+
+### Quality & Testing
+- **[CI/CD Strategy](docs/CI-CD-STRATEGY.md)** - Pipeline & workflows
+- **[QA Test Plans](docs/qa/)** - Planos de teste detalhados
+- **[SonarQube Setup](docs/SONARQUBE-SETUP.md)** - Code quality
+
+### Deploy & Infrastructure
+- **[Terraform Modules](terraform/)** - AWS infrastructure as code
+- **[Free Tier Guide](terraform/FREE_TIER_GUIDE.md)** - Deploy gratuito AWS
+
 ---
 
 ## 🏗️ Tecnologias
