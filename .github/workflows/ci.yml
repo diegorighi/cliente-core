@@ -1,0 +1,59 @@
+name: CI - Build and Test
+
+on:
+  pull_request:
+    branches:
+      - developer
+      - release
+      - main
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: -Xmx3072m
+
+jobs:
+  build-and-test:
+    name: Build and Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn clean compile -DskipTests
+
+      - name: Run All Tests
+        run: mvn test
+
+      - name: Test Report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Maven Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/
+
+      - name: Build Success
+        if: success()
+        run: echo "Build completed successfully"

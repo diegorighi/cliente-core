@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!--
+    Arquivo de supressões para o OWASP Dependency Check.
+
+    Use com moderação! Apenas suprima CVEs quando:
+    1. A vulnerabilidade não afeta sua aplicação (ex: funcionalidade não usada)
+    2. Não há versão corrigida disponível ainda
+    3. O risco foi avaliado e aceito pela equipe de segurança
+
+    Formato de supressão:
+    <suppress>
+       <notes>Explicação do motivo da supressão</notes>
+       <cve>CVE-2023-XXXXX</cve>
+    </suppress>
+    -->
+
+    <!-- Exemplo: Supressão de falso positivo -->
+    <!--
+    <suppress>
+       <notes>
+          Falso positivo: Esta CVE afeta apenas a funcionalidade X que não é usada em nosso projeto.
+          Rastreamento: JIRA-123
+       </notes>
+       <gav regex="true">org\.example:.*</gav>
+       <cve>CVE-2023-12345</cve>
+    </suppress>
+    -->
+
+</suppressions>
