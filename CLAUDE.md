@@ -454,6 +454,52 @@ mvn clean verify
 
 ---
 
+## Spring Boot Banner Customization
+
+**Custom Banner:** `src/main/resources/banner.txt`
+
+O cliente-core utiliza banner customizado com ASCII art para identificação visual do microserviço:
+
+```
+   ██████╗ ██╗     ██╗ ███████╗ ███╗   ██╗ ████████╗ ███████╗
+  ██╔════╝ ██║     ██║ ██╔════╝ ████╗  ██║ ╚══██╔══╝ ██╔════╝
+  ██║      ██║     ██║ █████╗   ██╔██╗ ██║    ██║    █████╗
+  ██║      ██║     ██║ ██╔══╝   ██║╚██╗██║    ██║    ██╔══╝
+  ╚██████╗ ███████╗██║ ███████╗ ██║ ╚████║    ██║    ███████╗
+   ╚═════╝ ╚══════╝╚═╝ ╚══════╝ ╚═╝  ╚═══╝    ╚═╝    ╚══════╝
+
+   ██████╗  ██████╗  ██████╗  ███████╗
+  ██╔════╝ ██╔═══██╗ ██╔══██╗ ██╔════╝
+  ██║      ██║   ██║ ██████╔╝ █████╗
+  ██║      ██║   ██║ ██╔══██╗ ██╔══╝
+  ╚██████╗ ╚██████╔╝ ██║  ██║ ███████╗
+   ╚═════╝  ╚═════╝  ╚═╝  ╚═╝ ╚══════╝
+
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🚚 Microserviço de Gestão de Clientes | Va Nessa Mudança
+  📦 Spring Boot ${spring-boot.version} | ☕ Java ${java.version}
+  🔧 Ambiente: ${spring.profiles.active} | 🎯 Hexagonal Architecture
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Variáveis dinâmicas disponíveis:**
+- `${spring-boot.version}` - Versão do Spring Boot (ex: 3.5.7)
+- `${spring-boot.formatted-version}` - Versão formatada com padding
+- `${application.version}` - Versão da aplicação (pom.xml)
+- `${application.name}` - Nome da aplicação
+- `${java.version}` - Versão do Java Runtime
+- `${spring.profiles.active}` - Perfis ativos (dev, prod, staging)
+
+**Como customizar:**
+1. Editar `src/main/resources/banner.txt`
+2. Usar gerador ASCII: https://patorjk.com/software/taag/
+3. Rebuildar: `mvn clean install`
+4. Testar: `mvn spring-boot:run`
+
+**Backup:** O banner original do Spring Boot está preservado em `banner-original.txt`
+
+---
+
 ## Structured Logging & Observability
 
 ### Overview
