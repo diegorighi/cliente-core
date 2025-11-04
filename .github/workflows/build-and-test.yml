@@ -21,13 +21,14 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run tests
-        run: mvn clean test
+      - name: Run tests with coverage
+        run: mvn clean test jacoco:report
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Generate coverage report
-        run: mvn jacoco:report
+      - name: Check coverage requirements
+        run: mvn jacoco:check
+        continue-on-error: false
 
       - name: Upload coverage to Codecov
         if: success()
@@ -36,6 +37,7 @@ jobs:
           files: ./target/site/jacoco/jacoco.xml
           flags: unittests
           name: codecov-cliente-core
+          fail_ci_if_error: true
 
   build:
     runs-on: ubuntu-latest

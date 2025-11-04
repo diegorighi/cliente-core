@@ -3,41 +3,38 @@ spring:
     activate:
       on-profile: integration
 
-  # PostgreSQL via TestContainers (configurado dinamicamente em AbstractIntegrationTest)
-  # As propriedades abaixo são defaults, mas serão sobrescritas por @DynamicPropertySource
+  # PostgreSQL connection configured via @DynamicPropertySource in AbstractIntegrationTest
+  # DO NOT configure datasource.url here - it conflicts with TestContainers
   datasource:
-    driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: 5
+      minimum-idle: 2
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
     show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
 
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db-changelog-master.xml
-    contexts: ""  # Vazio = executa apenas changesets sem context (DDL, não seeds)
+    # Context "integration" não existe em nenhum changeset
+    # Resultado: roda apenas changesets SEM context (DDL) e ignora os COM context (seeds)
+    contexts: integration
     drop-first: false
+    default-schema: public
 
-  # Disable cache in integration tests (use NoOpCacheManager)
   cache:
     type: none
 
-# Disable custom cache backend in integration tests
 cache:
-  backend: none
+  backend: none  # No cache in integration tests
 
 logging:
   level:
     root: WARN
-    br.com.vanessa_mudanca: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate: WARN
+    br.com.vanessa_mudanca: INFO
     org.testcontainers: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
