@@ -1,6 +1,6 @@
 # 🚀 Local Development Setup
 
-Guia rápido para rodar cliente-core localmente **sem credenciais AWS**.
+Guia rápido para rodar cliente-core localmente com **PostgreSQL + Caffeine cache in-memory**.
 
 ---
 
@@ -9,17 +9,17 @@ Guia rápido para rodar cliente-core localmente **sem credenciais AWS**.
 - Java 21+
 - Maven 3.9+
 - Docker & Docker Compose
-- (Opcional) AWS CLI v2 (para inspeção de DynamoDB Local)
+- (Opcional) jq - Para testes JSON (`brew install jq`)
 
 ---
 
-## 🏃 Quick Start (3 minutos)
+## 🏃 Quick Start (2 minutos)
 
 > **⚠️ IMPORTANTE:** Todos os comandos devem ser executados da **raiz do projeto cliente-core**.
 >
 > Navegue até a raiz: `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
-### 1. Iniciar infraestrutura local
+### 1. Iniciar PostgreSQL
 
 ```bash
 # Opção A: Script helper (recomendado)
@@ -30,8 +30,8 @@ docker-compose up -d
 ```
 
 **O que sobe:**
-- ✅ **DynamoDB Local** (porta 8000) - Cache backend
 - ✅ **PostgreSQL 16** (porta 5432) - Database principal
+- ✅ **Cache:** Caffeine in-memory (configurado automaticamente no Spring Boot)
 
 ### 2. Rodar aplicação
 
@@ -40,6 +40,11 @@ mvn spring-boot:run
 ```
 
 **Aplicação disponível em:** http://localhost:8081/api/clientes
+
+**O que acontece no startup:**
+- ✅ Liquibase executa migrations (DDL + seeds)
+- ✅ Cache Caffeine configurado automaticamente (in-memory)
+- ✅ Tempo de startup: ~4 segundos
 
 ### 3. (Opcional) Testar cache
 
@@ -54,25 +59,22 @@ mvn spring-boot:run
 ### Script Helper
 
 ```bash
-./local-dev.sh start       # Inicia infraestrutura
+./local-dev.sh start       # Inicia PostgreSQL
 ./local-dev.sh stop        # Para tudo
 ./local-dev.sh restart     # Reinicia
-./local-dev.sh status      # Mostra status
-./local-dev.sh logs        # Tail logs
-./local-dev.sh test-cache  # Testa performance do cache
+./local-dev.sh status      # Mostra status (PostgreSQL + Spring Boot + Cache)
+./local-dev.sh logs        # Tail logs do PostgreSQL
+./local-dev.sh test-cache  # Testa performance do cache Caffeine
 ```
 
 ### Docker Compose Manual
 
 ```bash
-# Iniciar todos os serviços
+# Iniciar PostgreSQL
 docker-compose up -d
 
-# Iniciar apenas DynamoDB (se PostgreSQL já está rodando)
-docker-compose up -d dynamodb-local
-
 # Ver logs
-docker-compose logs -f dynamodb-local
+docker-compose logs -f postgres
 
 # Parar tudo
 docker-compose down
@@ -103,59 +105,71 @@ mvn clean package -DskipTests
 
 ```
 cliente-core/
-├── docker-compose.yml           # Infraestrutura local
+├── docker-compose.yml           # PostgreSQL apenas
 ├── local-dev.sh                 # Script helper
+├── setup-local.sh               # Setup completo automatizado
 ├── LOCAL_DEVELOPMENT.md         # Este arquivo
 └── src/main/resources/
-    └── application-dev.yml      # Config para desenvolvimento
+    ├── application.yml          # Config base
+    └── application-dev.yml      # Config desenvolvimento (Caffeine)
 ```
 
 ---
 
-## 🎯 DynamoDB Local
+## 🎯 Cache Caffeine (In-Memory)
 
 ### Configuração Automática
 
-O `application-dev.yml` já está configurado para DynamoDB Local:
+O `application-dev.yml` já está configurado com Caffeine:
 
 ```yaml
-aws:
-  region: us-east-1
-  dynamodb:
-    endpoint: http://localhost:8000  # DynamoDB Local
+spring:
+  cache:
+    type: caffeine
+    cache-names: clientes
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=5m
 ```
 
-**Credenciais:** Fake credentials são usadas automaticamente no ambiente dev (ver `DynamoDbCacheConfig.java`).
+**Características:**
+- ✅ **TTL:** 5 minutos (dados de cliente mudam raramente)
+- ✅ **Max Size:** 10.000 entradas (~100 MB RAM)
+- ✅ **Latency:** <1ms (vs 150-200ms PostgreSQL)
+- ✅ **Zero infra:** Roda na JVM, sem containers externos
 
-### Acessar DynamoDB Local
+### Verificar Cache via Actuator
 
-**Via AWS CLI:**
+**Ver todos os caches:**
 ```bash
-# Listar tabelas
-aws dynamodb list-tables \
-    --endpoint-url http://localhost:8000 \
-    --region us-east-1
-
-# Ver itens cached
-aws dynamodb scan \
-    --table-name cliente-core-cache \
-    --endpoint-url http://localhost:8000 \
-    --region us-east-1 \
-    --max-items 10
-
-# Deletar tabela (reset)
-aws dynamodb delete-table \
-    --table-name cliente-core-cache \
-    --endpoint-url http://localhost:8000 \
-    --region us-east-1
+curl http://localhost:8081/api/clientes/actuator/caches | jq
 ```
 
-**Via DynamoDB Admin (GUI):**
+**Cache gets (total de leituras):**
 ```bash
-# Iniciar GUI opcional
-docker-compose --profile debug up -d
+curl http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq
+```
 
-# Acessar: http://localhost:8001
+**Cache puts (total de escritas):**
+```bash
+curl http://localhost:8081/api/clientes/actuator/metrics/cache.puts | jq
+```
+
+**Cache evictions (itens removidos):**
+```bash
+curl http://localhost:8081/api/clientes/actuator/metrics/cache.evictions | jq
+```
+
+**Calcular Hit Rate:**
+```bash
+# Cache hits
+HITS=$(curl -s "http://localhost:8081/api/clientes/actuator/metrics/cache.gets?tag=result:hit" | jq -r '.measurements[0].value')
+
+# Cache misses
+MISSES=$(curl -s "http://localhost:8081/api/clientes/actuator/metrics/cache.gets?tag=result:miss" | jq -r '.measurements[0].value')
+
+# Hit rate
+echo "scale=2; $HITS / ($HITS + $MISSES) * 100" | bc
+# Output: 73.25% (exemplo)
 ```
 
 ---
@@ -165,26 +179,27 @@ docker-compose --profile debug up -d
 ### Teste Manual
 
 ```bash
-# 1. Criar cliente
-curl -X POST http://localhost:8081/api/clientes/v1/pf \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cpf": "12345678910",
-    "nomeCompleto": "João da Silva",
-    "dataNascimento": "1990-01-15",
-    "sexo": "MASCULINO",
-    "email": "joao@test.com",
-    "telefone": "11987654321"
-  }'
+# Buscar primeiro cliente dos seeds
+UUID=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf?page=0&size=1" | jq -r '.content[0].publicId')
 
-# Copiar UUID retornado
+echo "UUID do cliente: $UUID"
 
-# 2. Primeira busca (cache MISS - ~150-200ms)
-time curl http://localhost:8081/api/clientes/v1/pf/{UUID}
+# 1ª busca (cache MISS - vai no PostgreSQL)
+echo "Cache MISS:"
+time curl -s "http://localhost:8081/api/clientes/v1/clientes/pf/$UUID" > /dev/null
 
-# 3. Segunda busca (cache HIT - ~10-20ms)
-time curl http://localhost:8081/api/clientes/v1/pf/{UUID}
+# 2ª busca (cache HIT - Caffeine in-memory)
+echo "Cache HIT:"
+time curl -s "http://localhost:8081/api/clientes/v1/clientes/pf/$UUID" > /dev/null
 ```
+
+**Resultado esperado:**
+```
+Cache MISS: 150-200ms  (busca no PostgreSQL)
+Cache HIT:  <1ms       (busca no Caffeine)
+```
+
+**Melhoria:** 150-200x mais rápido! 🚀
 
 ### Teste Automatizado
 
@@ -194,24 +209,29 @@ time curl http://localhost:8081/api/clientes/v1/pf/{UUID}
 
 **Output esperado:**
 ```
-🧪 Testando cache DynamoDB...
+🧪 Testando cache Caffeine in-memory...
 
-1️⃣  Criando cliente de teste...
-   Cliente ID: 550e8400-e29b-41d4-a716-446655440000
+1️⃣  Buscando cliente para teste (usando seeds do Liquibase)...
+   Cliente ID: 4e63f4ba-8efd-458d-9786-61a2c351621c
 
 2️⃣  Primeira busca (cache MISS - vai no banco)...
    ⏱️  Tempo: 187ms
 
-3️⃣  Segunda busca (cache HIT - do DynamoDB)...
-   ⏱️  Tempo: 15ms
+3️⃣  Segunda busca (cache HIT - do Caffeine in-memory)...
+   ⏱️  Tempo: 0.8ms
 
 📊 Resultados:
    1ª busca (DB):    187ms
-   2ª busca (Cache): 15ms
-   ✅ Cache mais rápido em 92.0%
+   2ª busca (Cache): 0.8ms (esperado <1ms)
+   ✅ Cache mais rápido em 99.6%
 
-🔍 Verificar tabela DynamoDB:
-  - clientes:findById::550e8400-e29b-41d4-a716-446655440000
+🔍 Métricas do Caffeine (Spring Actuator):
+   Cache Gets:       42
+   Cache Puts:       15
+   Cache Evictions:  0
+
+📦 Caches ativos:
+   - clientes
 ```
 
 ---
@@ -231,37 +251,17 @@ brew services stop postgresql
 sudo systemctl stop postgresql
 ```
 
-**Solução 2:** Subir apenas DynamoDB
-```bash
-docker-compose up -d dynamodb-local
+**Solução 2:** Alterar porta no `docker-compose.yml`
+```yaml
+ports:
+  - "5433:5432"  # Mapeia porta 5433 → 5432
 ```
 
-### DynamoDB Local não sobe
-
-**Problema:** Porta 8000 em uso.
-
-**Solução:**
-```bash
-# Verificar o que está usando porta 8000
-lsof -i :8000
-
-# Matar processo
-kill -9 <PID>
-
-# Tentar novamente
-docker-compose up -d dynamodb-local
+Depois alterar `application-dev.yml`:
+```yaml
+datasource:
+  url: jdbc:postgresql://localhost:5433/vanessa_mudanca_clientes
 ```
-
-### Tabela cliente-core-cache não existe
-
-**Problema:** Aplicação não criou tabela automaticamente.
-
-**Causa:** `DynamoDbTableInitializer` não rodou (erro de conexão).
-
-**Solução:**
-1. Verificar logs da aplicação
-2. Verificar se DynamoDB Local está rodando: `docker-compose ps`
-3. Reiniciar aplicação: `mvn spring-boot:run`
 
 ### Cache não está funcionando
 
@@ -273,25 +273,73 @@ grep -r "@Cacheable" src/main/java/
 
 Se não retornar nada, significa que **cache não está ativo** (annotations precisam ser adicionadas aos services).
 
+**Verificar configuração do cache:**
+```bash
+# Ver caches ativos
+curl http://localhost:8081/api/clientes/actuator/caches | jq
+
+# Ver métricas de cache
+curl http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq
+```
+
+**Verificar logs:**
+```bash
+# Filtrar logs de cache
+grep -i "Caffeine\|Cache" target/spring-boot.log
+```
+
+### Application não inicia - Porta 8081 em uso
+
+**Problema:** Outra instância do cliente-core está rodando.
+
+**Solução:**
+```bash
+# Encontrar processo
+lsof -i :8081
+
+# Matar processo
+kill -9 <PID>
+
+# OU alterar porta temporariamente
+mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=8082"
+```
+
+### Liquibase validation error
+
+**Problema:** Database schema doesn't match Liquibase changesets.
+
+**Solução (APENAS EM DEV):**
+```bash
+# Deletar histórico Liquibase
+psql -U user -d vanessa_mudanca_clientes -c "DROP TABLE databasechangelog; DROP TABLE databasechangeloglock;"
+
+# Reiniciar aplicação
+mvn spring-boot:run
+```
+
+**⚠️ ATENÇÃO:** NUNCA fazer isso em STAGING ou PROD!
+
 ---
 
 ## 📚 Referências
 
-- **DYNAMODB_CACHE_SUMMARY.md** - Overview da implementação de cache
-- **docs/CACHE_MIGRATION_GUIDE.md** - Guia de migração DynamoDB → Redis
-- **docs/CACHE_COST_COMPARISON.md** - Análise de custos
+- **docs/CACHE.md** - Documentação completa do cache Caffeine
+- **docs/setup/COMO_SUBIR_LOCAL_STACK.md** - Guia detalhado com exemplos
+- **README.md** - Documentação completa do microserviço
 
 ---
 
 ## ✨ Features
 
-✅ **Zero configuração AWS** - Usa DynamoDB Local com credenciais fake
+✅ **Zero configuração externa** - Apenas PostgreSQL no Docker
+✅ **Cache ultra-rápido** - Caffeine in-memory (<1ms latência)
+✅ **Auto migrations** - Liquibase executa DDL + seeds automaticamente
 ✅ **Script helper** - `local-dev.sh` para facilitar operações
-✅ **Auto table creation** - Tabela criada automaticamente no startup
-✅ **GUI opcional** - DynamoDB Admin em http://localhost:8001
-✅ **Cache testing** - Script automatizado para testar performance
+✅ **Health checks** - Actuator endpoints para k8s probes
+✅ **Metrics** - Prometheus scraping para Grafana
 
 ---
 
-**Última atualização:** 2025-11-04
-**Versão:** 1.0.0
+**Última atualização:** 2025-11-05
+**Versão:** 2.0.0 (Simplificado - Caffeine in-memory)
+**Autor:** Equipe Va Nessa Mudança
