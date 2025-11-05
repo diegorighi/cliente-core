@@ -40,8 +40,7 @@ exclude:
   - "application-dev.yml"          # Development profile only
   - "application-integration.yml"  # Integration tests only
   - "setup-local.sh"               # Local dev script
-  - ".github/workflows/developer-with-jmeter.yml"  # CI/CD uses ephemeral databases
-  - ".github/workflows/release-with-loadtest.yml"  # CI/CD uses ephemeral databases
+  - ".github/workflows/ci.yml"     # CI/CD uses ephemeral databases
 
 # Production files that MUST NOT have hardcoded secrets
 # (GitGuardian will still alert if these contain secrets)
