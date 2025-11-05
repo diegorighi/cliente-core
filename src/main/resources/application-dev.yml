@@ -42,23 +42,15 @@ spring:
     livereload:
       enabled: true
 
-  # Cache Configuration (DynamoDB for MVP - Free Tier)
+  # Cache Configuration - Caffeine in-memory (MVP)
+  # Performance: <1ms latency (vs 10-20ms DynamoDB)
+  # Adequado até 10.000 clientes (~100 MB RAM)
+  # Migrar para Redis quando escalar (>50k clientes ou múltiplas instâncias)
   cache:
-    type: none  # Custom CacheManager via @Bean (DynamoDbCacheManager)
-
-# Cache backend selection (dynamodb or redis)
-cache:
-  backend: dynamodb  # Use DynamoDB for MVP (Free Tier $0/month)
-  dynamodb:
-    table-name: cliente-core-cache
-
-# AWS Configuration (DynamoDB Local - sem credenciais reais)
-aws:
-  region: us-east-1
-  accessKeyId: fakeAccessKey  # Credenciais fake para DynamoDB Local
-  secretKey: fakeSecretKey    # DynamoDB Local não valida credenciais
-  dynamodb:
-    endpoint: http://localhost:8000  # DynamoDB Local (dev only, remove for prod)
+    type: caffeine
+    cache-names: clientes
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=5m
 
 logging:
   level:

@@ -31,7 +31,7 @@ check_docker() {
 }
 
 start_services() {
-    echo -e "${COLOR_GREEN}🚀 Iniciando serviços...${COLOR_NC}"
+    echo -e "${COLOR_GREEN}🚀 Iniciando PostgreSQL...${COLOR_NC}"
 
     # Parar postgres se já estiver rodando na porta 5432
     if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
@@ -39,54 +39,24 @@ start_services() {
         echo -e "${COLOR_YELLOW}   Se for Docker Compose, rode: docker-compose down${COLOR_NC}"
     fi
 
-    # Subir DynamoDB Local
-    docker-compose up -d dynamodb-local
+    # Subir PostgreSQL
+    docker-compose up -d
 
-    # Aguardar DynamoDB estar healthy
-    echo -e "${COLOR_YELLOW}⏳ Aguardando DynamoDB Local estar pronto...${COLOR_NC}"
+    # Aguardar PostgreSQL estar healthy
+    echo -e "${COLOR_YELLOW}⏳ Aguardando PostgreSQL estar pronto...${COLOR_NC}"
     sleep 3
 
-    # Verificar se DynamoDB está rodando
-    if docker-compose ps dynamodb-local | grep -q "Up"; then
-        echo -e "${COLOR_GREEN}✅ DynamoDB Local rodando em http://localhost:8000${COLOR_NC}"
+    # Verificar se PostgreSQL está rodando
+    if docker-compose ps postgres | grep -q "Up"; then
+        echo -e "${COLOR_GREEN}✅ PostgreSQL rodando em localhost:5432${COLOR_NC}"
     else
-        echo -e "${COLOR_RED}❌ Erro ao iniciar DynamoDB Local${COLOR_NC}"
+        echo -e "${COLOR_RED}❌ Erro ao iniciar PostgreSQL${COLOR_NC}"
         exit 1
     fi
 
-    # Criar tabela de cache no DynamoDB Local
-    echo -e "${COLOR_YELLOW}📦 Criando tabela de cache no DynamoDB Local...${COLOR_NC}"
-
-    # Verificar se AWS CLI está instalado
-    if ! command -v aws &> /dev/null; then
-        echo -e "${COLOR_YELLOW}⚠️  AWS CLI não está instalado (cache não funcionará)${COLOR_NC}"
-        echo -e "${COLOR_YELLOW}   Instale com: brew install awscli${COLOR_NC}"
-    else
-        # Verificar se tabela já existe
-        if AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake AWS_DEFAULT_REGION=us-east-1 \
-            aws dynamodb describe-table --table-name cliente-core-cache --endpoint-url http://localhost:8000 &>/dev/null; then
-            echo -e "${COLOR_GREEN}✅ Tabela cliente-core-cache já existe${COLOR_NC}"
-        else
-            # Criar tabela
-            AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake AWS_DEFAULT_REGION=us-east-1 \
-            aws dynamodb create-table \
-                --table-name cliente-core-cache \
-                --attribute-definitions AttributeName=cacheKey,AttributeType=S \
-                --key-schema AttributeName=cacheKey,KeyType=HASH \
-                --billing-mode PAY_PER_REQUEST \
-                --endpoint-url http://localhost:8000 \
-                --no-cli-pager &>/dev/null
-
-            if [ $? -eq 0 ]; then
-                echo -e "${COLOR_GREEN}✅ Tabela cliente-core-cache criada com sucesso${COLOR_NC}"
-            else
-                echo -e "${COLOR_RED}❌ Erro ao criar tabela (cache não funcionará)${COLOR_NC}"
-            fi
-        fi
-    fi
-
     echo ""
-    echo -e "${COLOR_GREEN}✅ Serviços prontos!${COLOR_NC}"
+    echo -e "${COLOR_GREEN}✅ PostgreSQL pronto!${COLOR_NC}"
+    echo -e "${COLOR_BLUE}ℹ️  Cache: Caffeine in-memory (configurado automaticamente no Spring Boot)${COLOR_NC}"
     echo ""
     echo -e "${COLOR_BLUE}📋 Próximos passos:${COLOR_NC}"
     echo -e "   1. ${COLOR_YELLOW}mvn spring-boot:run${COLOR_NC} (rodar aplicação)"
@@ -133,36 +103,22 @@ restart_services() {
 }
 
 show_logs() {
-    echo -e "${COLOR_BLUE}📄 Logs dos serviços (Ctrl+C para sair)${COLOR_NC}"
-    docker-compose logs -f
+    echo -e "${COLOR_BLUE}📄 Logs do PostgreSQL (Ctrl+C para sair)${COLOR_NC}"
+    docker-compose logs -f postgres
 }
 
 show_status() {
     echo -e "${COLOR_BLUE}📊 Status dos serviços:${COLOR_NC}"
     echo ""
 
-    # DynamoDB Local
-    if docker-compose ps dynamodb-local | grep -q "Up"; then
-        echo -e "  ${COLOR_GREEN}✅ DynamoDB Local${COLOR_NC}"
-        echo -e "     URL: ${COLOR_YELLOW}http://localhost:8000${COLOR_NC}"
-
-        # Listar tabelas
-        if command -v aws &> /dev/null; then
-            echo -e "     Tabelas:"
-            aws dynamodb list-tables --endpoint-url http://localhost:8000 --region us-east-1 --no-cli-pager 2>/dev/null | jq -r '.TableNames[]' | sed 's/^/       - /' || echo "       (nenhuma ainda)"
-        fi
-    else
-        echo -e "  ${COLOR_RED}❌ DynamoDB Local (não rodando)${COLOR_NC}"
-    fi
-
-    echo ""
-
     # PostgreSQL
     if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
         echo -e "  ${COLOR_GREEN}✅ PostgreSQL${COLOR_NC}"
         echo -e "     Port: ${COLOR_YELLOW}5432${COLOR_NC}"
+        echo -e "     Database: ${COLOR_YELLOW}vanessa_mudanca_clientes${COLOR_NC}"
     else
         echo -e "  ${COLOR_RED}❌ PostgreSQL (não rodando)${COLOR_NC}"
+        echo -e "     Rode: ${COLOR_YELLOW}./local-dev.sh start${COLOR_NC}"
     fi
 
     echo ""
@@ -171,6 +127,17 @@ show_status() {
     if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
         echo -e "  ${COLOR_GREEN}✅ Spring Boot Application${COLOR_NC}"
         echo -e "     URL: ${COLOR_YELLOW}http://localhost:8081/api/clientes${COLOR_NC}"
+
+        # Verificar cache Caffeine
+        if command -v curl &> /dev/null && command -v jq &> /dev/null; then
+            CACHE_NAMES=$(curl -s http://localhost:8081/api/clientes/actuator/caches 2>/dev/null | jq -r '.cacheManagers.cacheManager.caches | keys[]' 2>/dev/null || echo "")
+            if [ -n "$CACHE_NAMES" ]; then
+                echo -e "     Cache: ${COLOR_YELLOW}Caffeine (in-memory)${COLOR_NC}"
+                echo "$CACHE_NAMES" | while read cache; do
+                    echo -e "       - $cache"
+                done
+            fi
+        fi
     else
         echo -e "  ${COLOR_YELLOW}⚠️  Spring Boot Application (não rodando)${COLOR_NC}"
         echo -e "     Rode: ${COLOR_YELLOW}mvn spring-boot:run${COLOR_NC}"
@@ -180,18 +147,8 @@ show_status() {
 }
 
 test_cache() {
-    echo -e "${COLOR_BLUE}🧪 Testando cache DynamoDB...${COLOR_NC}"
+    echo -e "${COLOR_BLUE}🧪 Testando cache Caffeine in-memory...${COLOR_NC}"
     echo ""
-
-    # 🔒 PROTEÇÃO: Verificar se está em ambiente de desenvolvimento
-    if ! docker ps --filter "name=cliente-core-dynamodb" --format "{{.Names}}" | grep -q "cliente-core-dynamodb"; then
-        echo -e "${COLOR_RED}╔════════════════════════════════════════════════════════════╗${COLOR_NC}"
-        echo -e "${COLOR_RED}║  ⚠️  ATENÇÃO: Este script é apenas para DESENVOLVIMENTO  ║${COLOR_NC}"
-        echo -e "${COLOR_RED}║  DynamoDB Local não detectado - Ambiente pode ser PROD!   ║${COLOR_NC}"
-        echo -e "${COLOR_RED}║  ABORTANDO por segurança para evitar poluir dados reais   ║${COLOR_NC}"
-        echo -e "${COLOR_RED}╚════════════════════════════════════════════════════════════╝${COLOR_NC}"
-        exit 1
-    fi
 
     # Verificar se app está rodando
     if ! lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
@@ -200,16 +157,9 @@ test_cache() {
         exit 1
     fi
 
-    # Verificar se DynamoDB está rodando
-    if ! docker ps --filter "name=cliente-core-dynamodb" --format "{{.Status}}" | grep -q "Up"; then
-        echo -e "${COLOR_RED}❌ DynamoDB Local não está rodando${COLOR_NC}"
-        echo -e "${COLOR_YELLOW}   Rode: ./local-dev.sh start${COLOR_NC}"
-        exit 1
-    fi
-
     echo -e "${COLOR_GREEN}1️⃣  Buscando cliente para teste (usando seeds do Liquibase)...${COLOR_NC}"
 
-    # 🎯 Usar cliente dos seeds (Ana Silva - CPF 123.456.789-10)
+    # Usar cliente dos seeds (Ana Silva - CPF 123.456.789-10)
     # Não cria dados novos - usa apenas os seeds existentes
     UUID=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf?page=0&size=1" | jq -r '.content[0].publicId' 2>/dev/null)
 
@@ -232,7 +182,7 @@ test_cache() {
     sleep 1
 
     echo ""
-    echo -e "${COLOR_GREEN}3️⃣  Segunda busca (cache HIT - do DynamoDB)...${COLOR_NC}"
+    echo -e "${COLOR_GREEN}3️⃣  Segunda busca (cache HIT - do Caffeine in-memory)...${COLOR_NC}"
     TIME1=$(date +%s%N)
     curl -s http://localhost:8081/api/clientes/v1/clientes/pf/$UUID > /dev/null
     TIME2=$(date +%s%N)
@@ -242,7 +192,7 @@ test_cache() {
     echo ""
     echo -e "${COLOR_BLUE}📊 Resultados:${COLOR_NC}"
     echo -e "   1ª busca (DB):    ${COLOR_YELLOW}${ELAPSED1}ms${COLOR_NC}"
-    echo -e "   2ª busca (Cache): ${COLOR_YELLOW}${ELAPSED2}ms${COLOR_NC}"
+    echo -e "   2ª busca (Cache): ${COLOR_YELLOW}${ELAPSED2}ms${COLOR_NC} (esperado <1ms)"
 
     if (( $(echo "$ELAPSED2 < $ELAPSED1" | bc -l) )); then
         IMPROVEMENT=$(echo "scale=1; ($ELAPSED1 - $ELAPSED2) * 100 / $ELAPSED1" | bc 2>/dev/null || echo "N/A")
@@ -252,18 +202,34 @@ test_cache() {
     fi
 
     echo ""
-    echo -e "${COLOR_BLUE}🔍 Verificar tabela DynamoDB:${COLOR_NC}"
-    if command -v aws &> /dev/null; then
-        aws dynamodb scan \
-            --table-name cliente-core-cache \
-            --endpoint-url http://localhost:8000 \
-            --region us-east-1 \
-            --max-items 5 \
-            --no-cli-pager 2>/dev/null | jq -r '.Items[] | "  - " + .cacheKey.S' || echo "  (erro ao acessar DynamoDB)"
+    echo -e "${COLOR_BLUE}🔍 Métricas do Caffeine (Spring Actuator):${COLOR_NC}"
+    if command -v jq &> /dev/null; then
+        # Cache gets (total de leituras)
+        GETS=$(curl -s http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq -r '.measurements[0].value' 2>/dev/null || echo "0")
+        echo -e "   Cache Gets:       ${COLOR_YELLOW}$GETS${COLOR_NC}"
+
+        # Cache puts (total de escritas)
+        PUTS=$(curl -s http://localhost:8081/api/clientes/actuator/metrics/cache.puts | jq -r '.measurements[0].value' 2>/dev/null || echo "0")
+        echo -e "   Cache Puts:       ${COLOR_YELLOW}$PUTS${COLOR_NC}"
+
+        # Cache evictions (itens removidos)
+        EVICTIONS=$(curl -s http://localhost:8081/api/clientes/actuator/metrics/cache.evictions | jq -r '.measurements[0].value' 2>/dev/null || echo "0")
+        echo -e "   Cache Evictions:  ${COLOR_YELLOW}$EVICTIONS${COLOR_NC}"
+
+        # Lista de caches ativos
+        echo ""
+        echo -e "${COLOR_BLUE}📦 Caches ativos:${COLOR_NC}"
+        curl -s http://localhost:8081/api/clientes/actuator/caches | jq -r '.cacheManagers.cacheManager.caches | keys[]' 2>/dev/null | while read cache; do
+            echo -e "   - ${COLOR_YELLOW}$cache${COLOR_NC}"
+        done
     else
-        echo -e "  ${COLOR_YELLOW}AWS CLI não instalado (instale para ver itens cached)${COLOR_NC}"
+        echo -e "  ${COLOR_YELLOW}jq não instalado (instale para ver métricas detalhadas)${COLOR_NC}"
     fi
 
+    echo ""
+    echo -e "${COLOR_GREEN}✅ Teste concluído!${COLOR_NC}"
+    echo ""
+    echo -e "${COLOR_BLUE}💡 Dica:${COLOR_NC} Acesse ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/caches${COLOR_NC} para ver todas as métricas"
     echo ""
 }
 
@@ -294,12 +260,12 @@ case "${1:-}" in
         echo -e "${COLOR_YELLOW}Uso: $0 {start|stop|restart|logs|status|test-cache}${COLOR_NC}"
         echo ""
         echo -e "${COLOR_BLUE}Comandos:${COLOR_NC}"
-        echo -e "  ${COLOR_GREEN}start${COLOR_NC}       - Inicia DynamoDB Local (Docker)"
+        echo -e "  ${COLOR_GREEN}start${COLOR_NC}       - Inicia PostgreSQL (Docker)"
         echo -e "  ${COLOR_GREEN}stop${COLOR_NC}        - Para todos os serviços"
         echo -e "  ${COLOR_GREEN}restart${COLOR_NC}     - Reinicia serviços"
-        echo -e "  ${COLOR_GREEN}logs${COLOR_NC}        - Mostra logs dos serviços"
+        echo -e "  ${COLOR_GREEN}logs${COLOR_NC}        - Mostra logs do PostgreSQL"
         echo -e "  ${COLOR_GREEN}status${COLOR_NC}      - Mostra status dos serviços"
-        echo -e "  ${COLOR_GREEN}test-cache${COLOR_NC}  - Testa performance do cache"
+        echo -e "  ${COLOR_GREEN}test-cache${COLOR_NC}  - Testa performance do cache Caffeine"
         echo ""
         exit 1
         ;;

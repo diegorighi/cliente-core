@@ -1,76 +1,79 @@
 package br.com.vanessa_mudanca.cliente_core.infrastructure.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
+
+import java.util.concurrent.TimeUnit;
 
 /**
- * Configuração de cache backend-agnostic para cliente-core.
+ * Configuração de cache in-memory usando Caffeine.
  * <p>
- * Esta configuração utiliza Spring Cache abstraction (@Cacheable, @CacheEvict)
- * permitindo trocar o backend de cache (DynamoDB → Redis) sem alterar código de negócio.
+ * Caffeine oferece:
+ * <ul>
+ *   <li><b>Performance:</b> <1ms de latência (vs 10-20ms DynamoDB)</li>
+ *   <li><b>Simplicidade:</b> zero dependências de infra</li>
+ *   <li><b>Adequado para MVP:</b> até 10.000 clientes (~100 MB RAM)</li>
+ * </ul>
  * </p>
  *
- * <h3>Backends Suportados:</h3>
+ * <h3>Limitações:</h3>
  * <ul>
- *   <li><b>DynamoDB (MVP):</b> AWS Free Tier (25 GB + 25 WCU/RCU = $0/month)</li>
- *   <li><b>Redis (Produção):</b> ElastiCache (post Month 3-6, ~$12-25/month)</li>
+ *   <li>Cache perdido em restart (aceitável para dados de referência)</li>
+ *   <li>Limitado à memória JVM (max 512 MB recomendado)</li>
+ *   <li>Não compartilhado entre instâncias (usar Redis quando escalar)</li>
  * </ul>
  *
- * <h3>Migração DynamoDB → Redis:</h3>
- * <ol>
- *   <li>Alterar application.yml: cache.backend=redis</li>
- *   <li>Adicionar spring-boot-starter-data-redis ao pom.xml</li>
- *   <li>Deploy sem downtime (cache warming automático)</li>
- * </ol>
- *
- * <h3>Cache Strategy:</h3>
+ * <h3>Quando migrar para Redis:</h3>
  * <ul>
- *   <li><b>clientes:findById:</b> Cache de consultas por UUID (5 minutos)</li>
- *   <li><b>clientes:findByCpf:</b> Cache de consultas ClientePF por CPF (5 minutos)</li>
- *   <li><b>clientes:findByCnpj:</b> Cache de consultas ClientePJ por CNPJ (5 minutos)</li>
- *   <li><b>clientes:findByEmail:</b> Cache de consultas por email (3 minutos)</li>
- *   <li><b>clientes:list:</b> Cache de listagens paginadas (1 minuto)</li>
+ *   <li>Múltiplas instâncias da aplicação (horizontal scaling)</li>
+ *   <li>>50.000 clientes ativos</li>
+ *   <li>Necessidade de cache persistente (sobreviver a restarts)</li>
  * </ul>
  *
  * @see org.springframework.cache.annotation.Cacheable
  * @see org.springframework.cache.annotation.CacheEvict
- * @see DynamoDbCacheConfig
- * @see RedisCacheConfig
+ * @see org.springframework.cache.annotation.CachePut
  */
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
     /**
-     * Documentação para desenvolvedores:
+     * Configura Caffeine como backend de cache do Spring.
+     * <p>
+     * <b>Configurações:</b>
+     * <ul>
+     *   <li>TTL: 5 minutos (dados de cliente mudam raramente)</li>
+     *   <li>Max Size: 10.000 entradas (~100 MB de RAM)</li>
+     *   <li>Stats: habilitado para monitoramento via Actuator</li>
+     * </ul>
+     * </p>
      *
-     * Para trocar de DynamoDB para Redis no futuro:
+     * <p>
+     * <b>Métricas disponíveis via Actuator:</b>
+     * <pre>
+     * GET /actuator/caches
+     * GET /actuator/metrics/cache.gets
+     * GET /actuator/metrics/cache.puts
+     * GET /actuator/metrics/cache.evictions
+     * </pre>
+     * </p>
      *
-     * 1. Adicionar ao pom.xml:
-     *    <dependency>
-     *        <groupId>org.springframework.boot</groupId>
-     *        <artifactId>spring-boot-starter-data-redis</artifactId>
-     *    </dependency>
-     *
-     * 2. Criar RedisCacheConfig com @ConditionalOnProperty("cache.backend=redis")
-     *
-     * 3. Alterar application.yml:
-     *    cache:
-     *      backend: redis  # era: dynamodb
-     *    spring:
-     *      data:
-     *        redis:
-     *          host: elasticache-endpoint.amazonaws.com
-     *          port: 6379
-     *
-     * 4. Deploy: aplicação inicia com Redis, cache warming automático
-     *
-     * 5. Validar: logs devem mostrar "Using Redis cache backend"
-     *
-     * ZERO alteração no código de negócio (services com @Cacheable)!
+     * @return CacheManager configurado com Caffeine
      */
+    @Bean
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)  // TTL 5 minutos
+            .maximumSize(10_000)                     // Max 10k entradas (~100 MB)
+            .recordStats());                         // Métricas via Actuator
+
+        return cacheManager;
+    }
 }

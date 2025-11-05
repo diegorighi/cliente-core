@@ -13,15 +13,6 @@ COLOR_BLUE='\033[0;34m'
 COLOR_CYAN='\033[0;36m'
 COLOR_NC='\033[0m' # No Color
 
-# Detectar comando timeout disponível (Linux tem nativo, macOS não)
-if command -v timeout &> /dev/null; then
-    TIMEOUT_CMD="timeout"
-elif command -v gtimeout &> /dev/null; then
-    TIMEOUT_CMD="gtimeout"  # GNU coreutils no macOS (brew install coreutils)
-else
-    TIMEOUT_CMD=""  # Fallback para lógica shell portável
-fi
-
 print_banner() {
     clear
     echo ""
@@ -31,8 +22,8 @@ print_banner() {
     echo -e "${COLOR_BLUE}║${COLOR_NC}                                                                   ${COLOR_BLUE}║${COLOR_NC}"
     echo -e "${COLOR_BLUE}║${COLOR_NC}  ${COLOR_YELLOW}Este script vai:${COLOR_NC}                                          ${COLOR_BLUE}║${COLOR_NC}"
     echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Verificar dependências (Java, Maven, Docker)              ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Subir infraestrutura (PostgreSQL + DynamoDB Local)        ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Criar tabela de cache automaticamente                     ${COLOR_BLUE}║${COLOR_NC}"
+    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Subir infraestrutura (PostgreSQL apenas)                  ${COLOR_BLUE}║${COLOR_NC}"
+    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Configurar cache Caffeine in-memory automaticamente       ${COLOR_BLUE}║${COLOR_NC}"
     echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Buildar e startar a aplicação                             ${COLOR_BLUE}║${COLOR_NC}"
     echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Rodar smoke tests (health check + cache)                  ${COLOR_BLUE}║${COLOR_NC}"
     echo -e "${COLOR_BLUE}║${COLOR_NC}                                                                   ${COLOR_BLUE}║${COLOR_NC}"
@@ -103,13 +94,6 @@ check_dependencies() {
     fi
 
     # Opcionais (warnings apenas)
-    if command -v aws &> /dev/null; then
-        echo -e "  ${COLOR_GREEN}✅ AWS CLI instalado (opcional)${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_YELLOW}⚠️  AWS CLI não instalado (cache não poderá ser inspecionado)${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Instale: brew install awscli${COLOR_NC}"
-    fi
-
     if command -v jq &> /dev/null; then
         echo -e "  ${COLOR_GREEN}✅ jq instalado (opcional)${COLOR_NC}"
     else
@@ -165,7 +149,7 @@ stop_existing_services() {
         echo -e "  ${COLOR_GREEN}✅ Containers e networks removidos${COLOR_NC}"
     fi
 
-    # Limpar volumes órfãos do DynamoDB (dados temporários)
+    # Limpar volumes órfãos do PostgreSQL (dados temporários)
     ORPHAN_VOLUMES=$(docker volume ls --filter "name=cliente-core" --format "{{.Name}}")
     if [ -n "$ORPHAN_VOLUMES" ]; then
         echo -e "  ${COLOR_YELLOW}⚠️  Volumes órfãos detectados, removendo...${COLOR_NC}"
@@ -181,10 +165,10 @@ stop_existing_services() {
 start_infrastructure() {
     print_step "3️⃣  Iniciando Infraestrutura"
 
-    echo -e "  ${COLOR_BLUE}▶ Subindo PostgreSQL + DynamoDB Local...${COLOR_NC}"
+    echo -e "  ${COLOR_BLUE}▶ Subindo PostgreSQL...${COLOR_NC}"
     docker-compose up -d
 
-    echo -e "  ${COLOR_YELLOW}⏳ Aguardando serviços ficarem prontos (5s)...${COLOR_NC}"
+    echo -e "  ${COLOR_YELLOW}⏳ Aguardando PostgreSQL ficar pronto (5s)...${COLOR_NC}"
     sleep 5
 
     # Verificar PostgreSQL
@@ -195,85 +179,13 @@ start_infrastructure() {
         exit 1
     fi
 
-    # Verificar DynamoDB Local
-    if docker ps --filter "name=cliente-core-dynamodb" --format "{{.Status}}" | grep -q "Up"; then
-        echo -e "  ${COLOR_GREEN}✅ DynamoDB Local rodando (porta 8000)${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_RED}❌ DynamoDB Local falhou ao iniciar${COLOR_NC}"
-        exit 1
-    fi
-}
-
-create_dynamodb_table() {
-    print_step "4️⃣  Criando Tabela de Cache"
-
-    if ! command -v aws &> /dev/null; then
-        echo -e "  ${COLOR_YELLOW}⚠️  AWS CLI não instalado, pulando criação de tabela${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Cache não funcionará sem a tabela${COLOR_NC}"
-        return
-    fi
-
-    # Verificar se DynamoDB Local está saudável (timeout 10s)
-    echo -e "  ${COLOR_BLUE}▶ Verificando saúde do DynamoDB Local...${COLOR_NC}"
-    TIMEOUT=10
-    ELAPSED=0
-
-    while [ $ELAPSED -lt $TIMEOUT ]; do
-        if curl -s --max-time 2 http://localhost:8000 2>&1 | grep -q "DynamoDB"; then
-            echo -e "  ${COLOR_GREEN}✅ DynamoDB Local respondendo${COLOR_NC}"
-            break
-        fi
-
-        sleep 1
-        ELAPSED=$((ELAPSED + 1))
-
-        if [ $ELAPSED -eq $TIMEOUT ]; then
-            echo -e "  ${COLOR_RED}❌ DynamoDB Local não está respondendo${COLOR_NC}"
-            echo -e "  ${COLOR_YELLOW}⚠️  Tentando reiniciar DynamoDB Local...${COLOR_NC}"
-
-            docker restart cliente-core-dynamodb &>/dev/null
-            sleep 5
-
-            # Testar novamente
-            if ! curl -s --max-time 2 http://localhost:8000 2>&1 | grep -q "DynamoDB"; then
-                echo -e "  ${COLOR_RED}❌ DynamoDB Local falhou. Cache não funcionará.${COLOR_NC}"
-                echo -e "  ${COLOR_YELLOW}⚠️  Continuando sem cache...${COLOR_NC}"
-                return
-            fi
-        fi
-    done
-
-    echo -e "  ${COLOR_BLUE}▶ Verificando tabela cliente-core-cache...${COLOR_NC}"
-
-    # Verificar tabela (com timeout usando perl para macOS/Linux compatibilidade)
-    if ( AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake AWS_DEFAULT_REGION=us-east-1 \
-        aws dynamodb describe-table --table-name cliente-core-cache --endpoint-url http://localhost:8000 --no-cli-pager ) &>/dev/null & \
-        PID=$!; sleep 5; kill -0 $PID 2>/dev/null && kill $PID 2>/dev/null; wait $PID 2>/dev/null; then
-        echo -e "  ${COLOR_GREEN}✅ Tabela já existe${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_BLUE}▶ Criando tabela...${COLOR_NC}"
-
-        # Criar tabela
-        AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake AWS_DEFAULT_REGION=us-east-1 \
-        aws dynamodb create-table \
-            --table-name cliente-core-cache \
-            --attribute-definitions AttributeName=cacheKey,AttributeType=S \
-            --key-schema AttributeName=cacheKey,KeyType=HASH \
-            --billing-mode PAY_PER_REQUEST \
-            --endpoint-url http://localhost:8000 \
-            --no-cli-pager &>/dev/null
-
-        if [ $? -eq 0 ]; then
-            echo -e "  ${COLOR_GREEN}✅ Tabela criada com sucesso${COLOR_NC}"
-        else
-            echo -e "  ${COLOR_RED}❌ Erro ao criar tabela${COLOR_NC}"
-            echo -e "  ${COLOR_YELLOW}⚠️  Continuando sem cache...${COLOR_NC}"
-        fi
-    fi
+    echo ""
+    echo -e "  ${COLOR_GREEN}✅ Infraestrutura pronta!${COLOR_NC}"
+    echo -e "  ${COLOR_BLUE}ℹ️  Cache: Caffeine in-memory (configurado automaticamente)${COLOR_NC}"
 }
 
 build_application() {
-    print_step "5️⃣  Buildando Aplicação"
+    print_step "4️⃣  Buildando Aplicação"
 
     echo -e "  ${COLOR_BLUE}▶ Executando: mvn clean install -DskipTests${COLOR_NC}"
     echo -e "  ${COLOR_YELLOW}⏳ Isso pode demorar 1-2 minutos...${COLOR_NC}"
@@ -292,7 +204,7 @@ build_application() {
 }
 
 start_application() {
-    print_step "6️⃣  Iniciando Aplicação"
+    print_step "5️⃣  Iniciando Aplicação"
 
     echo -e "  ${COLOR_BLUE}▶ Executando: mvn spring-boot:run (background)${COLOR_NC}"
     echo -e "  ${COLOR_YELLOW}⏳ Aguardando startup (pode demorar 10-15s)...${COLOR_NC}"
@@ -334,7 +246,7 @@ start_application() {
 }
 
 run_smoke_tests() {
-    print_step "7️⃣  Executando Smoke Tests"
+    print_step "6️⃣  Executando Smoke Tests"
 
     # Test 1: Health Check
     echo -e "  ${COLOR_BLUE}▶ Test 1/4: Health Check${COLOR_NC}"
@@ -372,19 +284,19 @@ run_smoke_tests() {
     fi
 
     # Test 4: Cache (segunda busca - HIT)
-    echo -e "  ${COLOR_BLUE}▶ Test 4/4: Cache HIT (segunda busca)${COLOR_NC}"
+    echo -e "  ${COLOR_BLUE}▶ Test 4/4: Cache HIT (segunda busca - Caffeine)${COLOR_NC}"
     sleep 1
     START=$(date +%s%N)
     curl -s "http://localhost:8081/api/clientes/v1/clientes/pf/$UUID" > /dev/null 2>&1
     END=$(date +%s%N)
     TIME2=$(echo "scale=2; ($END - $START) / 1000000" | bc 2>/dev/null || echo "N/A")
 
-    echo -e "    ${COLOR_GREEN}✅ Cache: ${TIME2}ms (cache warmed)${COLOR_NC}"
+    echo -e "    ${COLOR_GREEN}✅ Cache: ${TIME2}ms (<1ms esperado)${COLOR_NC}"
 
-    if command -v aws &> /dev/null; then
-        CACHE_COUNT=$(AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake AWS_DEFAULT_REGION=us-east-1 \
-            aws dynamodb scan --table-name cliente-core-cache --endpoint-url http://localhost:8000 --no-cli-pager 2>/dev/null | jq -r '.Count' 2>/dev/null || echo "0")
-        echo -e "    ${COLOR_GREEN}✅ DynamoDB: $CACHE_COUNT itens cached${COLOR_NC}"
+    # Verificar métricas do Caffeine
+    if command -v jq &> /dev/null; then
+        CACHE_GETS=$(curl -s http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq -r '.measurements[0].value' 2>/dev/null || echo "0")
+        echo -e "    ${COLOR_GREEN}✅ Caffeine: $CACHE_GETS cache hits${COLOR_NC}"
     fi
 }
 
@@ -400,11 +312,12 @@ print_success_summary() {
     echo -e "   🌐 API Base:       ${COLOR_YELLOW}http://localhost:8081/api/clientes${COLOR_NC}"
     echo -e "   💚 Health Check:   ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/health${COLOR_NC}"
     echo -e "   📊 Metrics:        ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/metrics${COLOR_NC}"
+    echo -e "   🗃️  Cache Stats:    ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/caches${COLOR_NC}"
     echo -e "   📖 API Docs:       ${COLOR_YELLOW}http://localhost:8081/api/clientes/swagger-ui${COLOR_NC}"
     echo ""
     echo -e "${COLOR_CYAN}🗄️  Infraestrutura:${COLOR_NC}"
     echo -e "   🐘 PostgreSQL:     ${COLOR_YELLOW}localhost:5432${COLOR_NC} (user/senha123)"
-    echo -e "   ⚡ DynamoDB Local:  ${COLOR_YELLOW}http://localhost:8000${COLOR_NC}"
+    echo -e "   ⚡ Cache:           ${COLOR_YELLOW}Caffeine in-memory${COLOR_NC} (<1ms latency)"
     echo ""
     echo -e "${COLOR_CYAN}🛠️  Comandos Úteis:${COLOR_NC}"
     echo -e "   ${COLOR_YELLOW}./local-dev.sh status${COLOR_NC}      - Ver status dos serviços"
@@ -420,6 +333,9 @@ print_success_summary() {
     echo -e "   ${COLOR_BLUE}# Buscar por ID${COLOR_NC}"
     echo -e "   ${COLOR_YELLOW}curl http://localhost:8081/api/clientes/v1/clientes/pf/$UUID | jq${COLOR_NC}"
     echo ""
+    echo -e "   ${COLOR_BLUE}# Ver métricas do cache${COLOR_NC}"
+    echo -e "   ${COLOR_YELLOW}curl http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq${COLOR_NC}"
+    echo ""
     echo -e "${COLOR_GREEN}✨ Pronto para desenvolver!${COLOR_NC}"
     echo ""
 }
@@ -433,7 +349,6 @@ print_banner
 check_dependencies
 stop_existing_services
 start_infrastructure
-create_dynamodb_table
 build_application
 start_application
 run_smoke_tests
