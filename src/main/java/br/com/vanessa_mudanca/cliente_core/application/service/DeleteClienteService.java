@@ -42,8 +42,12 @@ public class DeleteClienteService implements DeleteClienteUseCase {
         MDC.put("clientId", publicId.toString());
 
         try {
+            // Sanitize user-controlled input to prevent log injection
+            String sanitizedMotivo = motivo != null ? motivo.replaceAll("[\n\r]", "_") : null;
+            String sanitizedUsuario = usuario != null ? usuario.replaceAll("[\n\r]", "_") : null;
+
             log.info("Iniciando deleção de cliente - PublicId: {}, Motivo: {}, Usuario: {}",
-                    publicId, motivo, usuario);
+                    publicId, sanitizedMotivo, sanitizedUsuario);
 
             // Busca cliente
             Cliente cliente = clienteRepository.findByPublicId(publicId)
@@ -84,8 +88,11 @@ public class DeleteClienteService implements DeleteClienteUseCase {
         MDC.put("clientId", publicId.toString());
 
         try {
+            // Sanitize user-controlled input to prevent log injection
+            String sanitizedUsuario = usuario != null ? usuario.replaceAll("[\n\r]", "_") : null;
+
             log.info("Iniciando restauração de cliente - PublicId: {}, Usuario: {}",
-                    publicId, usuario);
+                    publicId, sanitizedUsuario);
 
             // Busca cliente (inclusive deletados)
             Cliente cliente = clienteRepository.findByPublicId(publicId)

@@ -1,0 +1,1 @@
+# Cache com Redis

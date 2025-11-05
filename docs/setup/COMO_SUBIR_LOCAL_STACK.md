@@ -19,8 +19,19 @@ Certifique-se de ter instalado:
 
 ## 🎯 Setup Completo Automático
 
+**Navegue até a raiz do projeto cliente-core:**
+
 ```bash
+# Se você está na raiz do monorepo (va-nessa-mudanca/)
 cd cliente-core
+./setup-local.sh
+
+# Se você está em qualquer subpasta (ex: docs/setup/)
+cd ../..        # Volta para a raiz do cliente-core
+./setup-local.sh
+
+# Ou use caminho absoluto
+cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core
 ./setup-local.sh
 ```
 
@@ -45,7 +56,7 @@ Se tudo funcionar, você verá:
 ```
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║  🎉 SUCESSO! Cliente-Core rodando localmente!                    ║
+║  🎉 SUCESSO! Cliente-Core rodando localmente!                     ║
 ║                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
@@ -64,6 +75,10 @@ Se tudo funcionar, você verá:
 ---
 
 ## 🛠️ Comandos Úteis (Depois do Setup)
+
+> **⚠️ IMPORTANTE:** Todos os comandos abaixo devem ser executados da **raiz do projeto cliente-core**.
+>
+> Se você está em outra pasta: `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
 ```bash
 # Ver status dos serviços
@@ -85,6 +100,8 @@ Se tudo funcionar, você verá:
 ---
 
 ## 📝 Exemplos de Chamadas API
+
+> **ℹ️ Estes comandos podem ser executados de qualquer diretório** (apenas chamadas HTTP)
 
 ```bash
 # Listar todos os clientes PF
@@ -109,6 +126,8 @@ curl http://localhost:8081/api/clientes/actuator/metrics | jq
 ---
 
 ## 🔍 Inspecionar Cache (Requer AWS CLI)
+
+> **ℹ️ Estes comandos podem ser executados de qualquer diretório** (AWS CLI com endpoint local)
 
 ```bash
 # Listar tabelas DynamoDB Local
@@ -136,6 +155,8 @@ aws dynamodb scan \
 ## 🧪 Teste Manual de Cache (Passo a Passo)
 
 ### Teste Automatizado (RECOMENDADO)
+
+> **⚠️ Execute da raiz do projeto:** `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
 ```bash
 ./local-dev.sh test-cache
@@ -178,6 +199,8 @@ aws dynamodb scan \
 
 ### Teste Manual (Usando Seeds Existentes)
 
+> **ℹ️ Estes comandos podem ser executados de qualquer diretório** (apenas chamadas HTTP + AWS CLI)
+
 ```bash
 # 1. Buscar cliente dos seeds (Ana Silva)
 UUID=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf?page=0&size=1" | jq -r '.content[0].publicId')
@@ -207,6 +230,8 @@ aws dynamodb scan \
 
 ### Script Helper (local-dev.sh)
 
+> **⚠️ Execute da raiz do projeto:** `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
+
 ```bash
 ./local-dev.sh start       # Inicia DynamoDB Local + PostgreSQL
 ./local-dev.sh stop        # Para todos os serviços
@@ -217,6 +242,8 @@ aws dynamodb scan \
 ```
 
 ### Docker Compose Manual
+
+> **⚠️ Execute da raiz do projeto:** `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
 ```bash
 # Iniciar todos os serviços
@@ -236,6 +263,8 @@ docker-compose down -v
 ```
 
 ### Maven
+
+> **⚠️ Execute da raiz do projeto:** `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
 ```bash
 # Rodar aplicação (profile dev)
@@ -267,13 +296,19 @@ mvn clean install
 ```
 cliente-core/
 ├── docker-compose.yml                # PostgreSQL + DynamoDB Local
-├── local-dev.sh                      # Script helper
-├── COMO_SUBIR_LOCAL_STACK.md         # Este arquivo
-├── LOCAL_DEVELOPMENT.md              # Guia detalhado de desenvolvimento local
-├── DYNAMODB_CACHE_SUMMARY.md         # Overview da implementação de cache
+├── setup-local.sh                    # Setup completo automatizado
+├── local-dev.sh                      # Script helper para desenvolvimento
 ├── docs/
-│   ├── CACHE_MIGRATION_GUIDE.md      # Como migrar DynamoDB → Redis
-│   └── CACHE_COST_COMPARISON.md      # Análise de custos (4 cenários)
+│   ├── setup/
+│   │   ├── COMO_SUBIR_LOCAL_STACK.md         # Este arquivo (guia completo)
+│   │   ├── LOCAL_DEVELOPMENT.md              # Workflows diários
+│   │   └── SETUP_LOCAL_SUMMARY.md            # Resumo da implementação
+│   ├── cache/
+│   │   ├── DYNAMODB_CACHE_SUMMARY.md         # Overview do cache
+│   │   ├── CACHE_MIGRATION_GUIDE.md          # Migração DynamoDB → Redis
+│   │   └── CACHE_COST_COMPARISON.md          # Análise de custos
+│   └── development/
+│       └── VIRTUAL_THREADS.md                # Java 21 concurrency
 └── src/main/resources/
     ├── application.yml               # Config base (porta, actuator, etc)
     ├── application-dev.yml           # Config desenvolvimento (DynamoDB Local)
@@ -295,6 +330,9 @@ cliente-core/
 - Credenciais: Fake credentials (`fakeAccessKey`/`fakeSecretKey`)
 
 **Como rodar:**
+
+> **⚠️ Execute da raiz do projeto:** `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
+
 ```bash
 ./local-dev.sh start
 mvn spring-boot:run
