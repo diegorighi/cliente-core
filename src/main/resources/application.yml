@@ -19,12 +19,19 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,loggers,prometheus
+        include: health,info,metrics,loggers,prometheus,caches
   endpoint:
     health:
       show-details: when-authorized
       probes:
         enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
 
 info:
   app:
