@@ -4,7 +4,32 @@ Guia **ultra-rápido** para rodar o projeto localmente após `git clone`.
 
 ---
 
-## ⚡ TL;DR (1 minuto)
+## ⚡ TL;DR - Opção 1: WIZARD (1 clique, 3-5 minutos) 🧙
+
+**👉 Recomendado para setup inicial:**
+
+```bash
+cd cliente-core
+./WIZARD.sh
+```
+
+**O que o WIZARD faz automaticamente:**
+- ✅ Valida pré-requisitos (Java 21+, Maven, Docker)
+- ✅ Inicia PostgreSQL
+- ✅ Build Maven (`mvn clean install`)
+- ✅ Executa 250+ testes (coverage >=80%)
+- ✅ Inicia aplicação Spring Boot
+- ✅ Valida: health, database, seeds, cache Caffeine
+- ✅ Testa métricas Prometheus
+- ✅ Deixa aplicação rodando em background
+
+**Tempo:** 3-5 minutos | **Logs:** `/tmp/cliente-core-wizard.log`
+
+---
+
+## ⚡ TL;DR - Opção 2: Manual (3 comandos, 1 minuto) ⚡
+
+**Para quem já conhece o projeto:**
 
 ```bash
 cd cliente-core
@@ -199,21 +224,48 @@ open target/site/jacoco/index.html
 
 ## 🔧 Scripts Úteis
 
-### setup-local.sh (Setup Automático Completo)
+### WIZARD.sh (Validação Completa) 🧙
+
+**👉 Recomendado para setup inicial:**
+
+```bash
+./WIZARD.sh
+```
+
+**O que valida (8 etapas):**
+1. ✅ Pré-requisitos (Java 21+, Maven 3.9+, Docker)
+2. ✅ Diretório do projeto
+3. ✅ PostgreSQL (startup + conectividade)
+4. ✅ Build Maven (mvn clean install)
+5. ✅ Testes (250+ tests, coverage >=80%)
+6. ✅ Aplicação Spring Boot (startup + health check)
+7. ✅ Validações funcionais (DB, seeds, cache Caffeine)
+8. ✅ Observabilidade (Prometheus metrics)
+
+**Tempo:** 3-5 minutos | **Logs:** `/tmp/cliente-core-wizard.log`
+
+**Após execução:**
+- Aplicação rodando em background
+- PostgreSQL ativo
+- Todos os testes passados
+- Coverage validado (>=80%)
+
+---
+
+### setup-local.sh (Setup Rápido)
 ```bash
 ./setup-local.sh
 ```
 
-**O que faz:**
+**Alternativa mais rápida (sem testes):**
 1. Valida dependências (Java, Maven, Docker)
 2. Limpa containers órfãos
 3. Sobe PostgreSQL
-4. Faz build (mvn clean install)
+4. Faz build (mvn clean install -DskipTests)
 5. Inicia aplicação em background
 6. Executa 4 smoke tests (health, db, cache MISS, cache HIT)
-7. Salva logs em `/tmp/cliente-core-startup.log`
 
-**Tempo:** ~2-3 minutos
+**Tempo:** ~2 minutos
 
 ---
 

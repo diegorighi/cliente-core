@@ -9,7 +9,32 @@ Este serviço é o núcleo do cadastro de clientes, gerenciando informações pe
 
 **👉 COMECE AQUI:** [GETTING_STARTED.md](GETTING_STARTED.md)
 
-### TL;DR (1 minuto)
+### 🧙 WIZARD - Setup Completo (1 clique, 3-5 minutos)
+
+**Recomendado para primeiro uso:**
+
+```bash
+./WIZARD.sh
+```
+
+**Valida TUDO automaticamente (8 etapas):**
+- ✅ Pré-requisitos (Java 21+, Maven, Docker)
+- ✅ PostgreSQL (startup + conectividade)
+- ✅ Build Maven
+- ✅ **250+ testes (coverage >=80%)**
+- ✅ Aplicação Spring Boot (health check)
+- ✅ Database seeds (15 clientes exemplo)
+- ✅ Cache Caffeine (<1ms latency)
+- ✅ Métricas Prometheus
+
+**Resultado:** Ambiente 100% validado e aplicação rodando em `http://localhost:8081/api/clientes`
+
+---
+
+### ⚡ TL;DR - Manual (3 comandos, 1 minuto)
+
+**Se você já conhece o projeto:**
+
 ```bash
 # 1. Subir PostgreSQL
 docker-compose up -d
@@ -20,18 +45,6 @@ mvn spring-boot:run
 # 3. Testar
 curl http://localhost:8081/api/clientes/actuator/health
 ```
-
-### Setup Completo (2-3 minutos)
-```bash
-./setup-local.sh
-```
-
-Este script configura **automaticamente** todo o ambiente local:
-- ✅ PostgreSQL 16 em `localhost:5432`
-- ✅ Liquibase migrations (DDL + 15 clientes exemplo)
-- ✅ Cache Caffeine in-memory (<1ms latency)
-- ✅ Smoke tests (health, db, cache)
-- ✅ Aplicação rodando em `http://localhost:8081/api/clientes`
 
 **Documentação completa:** [GETTING_STARTED.md](GETTING_STARTED.md)
 
