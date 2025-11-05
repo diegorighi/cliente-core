@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Foca em testar regras de negócio e tratamento de exceções.
  */
 @WebMvcTest(ClientePJController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, br.com.vanessa_mudanca.cliente_core.infrastructure.security.TestSecurityConfig.class})
 @DisplayName("ClientePJController - Testes de endpoints REST")
 class ClientePJControllerTest {
 
@@ -71,6 +71,9 @@ class ClientePJControllerTest {
 
     @MockBean
     private DeleteClienteUseCase deleteClienteUseCase;
+
+    @MockBean
+    private br.com.vanessa_mudanca.cliente_core.infrastructure.security.CustomerAccessValidator customerAccessValidator;
 
     private ObjectMapper objectMapper;
     private CreateClientePJRequest requestValido;

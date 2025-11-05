@@ -23,7 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import br.com.vanessa_mudanca.cliente_core.infrastructure.security.CustomerAccessValidator;
 
 import java.util.UUID;
 
@@ -42,6 +46,7 @@ public class ClientePJController {
     private final FindClientePJByCnpjUseCase findClientePJByCnpjUseCase;
     private final ListClientePJUseCase listClientePJUseCase;
     private final DeleteClienteUseCase deleteClienteUseCase;
+    private final CustomerAccessValidator customerAccessValidator;
 
     public ClientePJController(
             CreateClientePJUseCase createClientePJUseCase,
@@ -49,16 +54,19 @@ public class ClientePJController {
             FindClientePJByIdUseCase findClientePJByIdUseCase,
             FindClientePJByCnpjUseCase findClientePJByCnpjUseCase,
             ListClientePJUseCase listClientePJUseCase,
-            DeleteClienteUseCase deleteClienteUseCase) {
+            DeleteClienteUseCase deleteClienteUseCase,
+            CustomerAccessValidator customerAccessValidator) {
         this.createClientePJUseCase = createClientePJUseCase;
         this.updateClientePJUseCase = updateClientePJUseCase;
         this.findClientePJByIdUseCase = findClientePJByIdUseCase;
         this.findClientePJByCnpjUseCase = findClientePJByCnpjUseCase;
         this.listClientePJUseCase = listClientePJUseCase;
         this.deleteClienteUseCase = deleteClienteUseCase;
+        this.customerAccessValidator = customerAccessValidator;
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
     @Operation(summary = "Criar cliente PJ", description = "Cria um novo cliente pessoa jurídica")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Cliente criado com sucesso"),
@@ -71,39 +79,59 @@ public class ClientePJController {
     }
 
     @GetMapping("/{publicId}")
-    @Operation(summary = "Buscar cliente PJ por Public ID", description = "Retorna um cliente pessoa jurídica pelo UUID público")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'CUSTOMER', 'SERVICE')")
+    @Operation(summary = "Buscar cliente PJ por Public ID", description = "Retorna um cliente pessoa jurídica pelo UUID público. Requer autenticação. CUSTOMER vê apenas próprio cadastro.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - CUSTOMER tentou acessar dados de outro cliente"),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     public ResponseEntity<ClientePJResponse> buscarPorId(
-            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId) {
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            Authentication authentication) {
+
+        // Valida se CUSTOMER está tentando acessar apenas próprio cadastro
+        customerAccessValidator.validateAccess(publicId, authentication);
+
         ClientePJResponse response = findClientePJByIdUseCase.findByPublicId(publicId);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/cnpj/{cnpj}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'CUSTOMER', 'SERVICE')")
     @Operation(summary = "Buscar cliente PJ por CNPJ",
-               description = "Retorna um cliente pessoa jurídica pelo CNPJ. Permite descobrir o UUID público através do CNPJ. Aceita CNPJ com formatação (12.345.678/0001-90) ou apenas números (12345678000190). RECOMENDADO: enviar apenas números para evitar problemas com caracteres especiais na URL.")
+               description = "Retorna um cliente pessoa jurídica pelo CNPJ. Permite descobrir o UUID público através do CNPJ. Aceita CNPJ com formatação (12.345.678/0001-90) ou apenas números (12345678000190). RECOMENDADO: enviar apenas números para evitar problemas com caracteres especiais na URL. CUSTOMER vê apenas próprio cadastro.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - CUSTOMER tentou acessar dados de outro cliente"),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     public ResponseEntity<ClientePJResponse> buscarPorCnpj(
             @Parameter(description = "CNPJ do cliente - aceita formato '12.345.678/0001-90' ou '12345678000190' (recomendado)",
-                      example = "12345678000190") @PathVariable String cnpj) {
+                      example = "12345678000190") @PathVariable String cnpj,
+            Authentication authentication) {
+
         ClientePJResponse response = findClientePJByCnpjUseCase.findByCnpj(cnpj);
+
+        // Valida se CUSTOMER está tentando acessar apenas próprio cadastro
+        customerAccessValidator.validateAccess(response.publicId(), authentication);
+
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    @Operation(summary = "Listar clientes PJ", description = "Lista todos os clientes pessoa jurídica com paginação")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'SERVICE')")
+    @Operation(summary = "Listar clientes PJ", description = "Lista todos os clientes pessoa jurídica com paginação. Requer role ADMIN, EMPLOYEE ou SERVICE. CUSTOMER não pode listar todos.")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
                     description = "Lista retornada com sucesso",
                     content = @Content(schema = @Schema(implementation = PageResponse.class))
-            )
+            ),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - CUSTOMER não pode listar todos os clientes")
     })
     public ResponseEntity<PageResponse<ClientePJResponse>> listar(
             @Parameter(description = "Número da página (inicia em 0)") @RequestParam(defaultValue = "0") int page,
@@ -119,14 +147,16 @@ public class ClientePJController {
     }
 
     @PutMapping("/{publicId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
     @Operation(
             summary = "Atualizar cliente PJ",
             description = "Atualiza dados do cliente PJ e suas entidades relacionadas (documentos, endereços, contatos). " +
-                    "Permite atualização seletiva: apenas os campos presentes no request serão atualizados."
+                    "Permite atualização seletiva: apenas os campos presentes no request serão atualizados. Requer role ADMIN ou EMPLOYEE."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Cliente atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - requer role ADMIN ou EMPLOYEE"),
             @ApiResponse(responseCode = "404", description = "Cliente, documento, endereço ou contato não encontrado"),
             @ApiResponse(responseCode = "409", description = "Conflito ao tentar marcar mais de um item como principal")
     })
@@ -163,13 +193,15 @@ public class ClientePJController {
     }
 
     @DeleteMapping("/{publicId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
             summary = "Deletar cliente PJ (soft delete)",
             description = "Realiza soft delete do cliente PJ. O cliente é marcado como inativo (ativo=false) e preserva todos os dados para auditoria. " +
-                    "Requer motivo e identificação do usuário responsável pela deleção."
+                    "Requer motivo e identificação do usuário responsável pela deleção. APENAS ADMIN pode deletar."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Cliente deletado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - apenas ADMIN pode deletar"),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
             @ApiResponse(responseCode = "409", description = "Cliente já foi deletado anteriormente")
     })
@@ -183,13 +215,15 @@ public class ClientePJController {
     }
 
     @PostMapping("/{publicId}/restaurar")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
             summary = "Restaurar cliente PJ deletado",
             description = "Restaura um cliente PJ que foi deletado (soft delete). " +
-                    "O cliente volta ao estado ativo (ativo=true) e limpa os campos de deleção."
+                    "O cliente volta ao estado ativo (ativo=true) e limpa os campos de deleção. APENAS ADMIN pode restaurar."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Cliente restaurado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - apenas ADMIN pode restaurar"),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     public ResponseEntity<Void> restaurar(

@@ -1,7 +1,9 @@
 package br.com.vanessa_mudanca.cliente_core.integration;
 
+import br.com.vanessa_mudanca.cliente_core.infrastructure.security.TestSecurityConfig;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -27,6 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("integration")
+@Import(TestSecurityConfig.class)
 @Testcontainers
 public abstract class AbstractIntegrationTest {
 

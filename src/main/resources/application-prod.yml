@@ -41,6 +41,14 @@ spring:
   cache:
     type: none  # Custom CacheManager via @Bean (DynamoDbCacheManager)
 
+  # OAuth2 Resource Server (Cognito JWT validation)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${COGNITO_JWKS_URI:https://cognito-idp.sa-east-1.amazonaws.com/sa-east-1_hXX8OVC7K/.well-known/jwks.json}
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.sa-east-1.amazonaws.com/sa-east-1_hXX8OVC7K}
+
 # Cache backend selection (dynamodb or redis)
 cache:
   backend: dynamodb  # Use DynamoDB for MVP (Free Tier $0/month)
