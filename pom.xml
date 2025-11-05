@@ -125,6 +125,25 @@
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
+		<!-- AWS Secrets Manager - Secure storage for database credentials and API keys -->
+		<!-- CRITICAL: Never hardcode credentials in application.yml -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-secretsmanager</artifactId>
+			<version>1.12.780</version>
+		</dependency>
+		<!-- AWS SDK v2 for better Spring Boot integration -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>secretsmanager</artifactId>
+			<version>2.28.24</version>
+		</dependency>
+		<!-- Spring Cloud AWS for seamless integration -->
+		<dependency>
+			<groupId>io.awspring.cloud</groupId>
+			<artifactId>spring-cloud-aws-starter-secrets-manager</artifactId>
+			<version>3.2.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>

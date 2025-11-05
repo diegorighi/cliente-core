@@ -49,3 +49,27 @@ springdoc:
   default-produces-media-type: application/json
   default-consumes-media-type: application/json
   override-with-generic-response: false
+
+# AWS Secrets Manager Configuration (prod/staging only)
+# CRITICAL: Never hardcode credentials here!
+# In dev profile, this is ignored (uses application-dev.yml)
+# In prod/staging, credentials are fetched from AWS Secrets Manager
+---
+spring:
+  config:
+    activate:
+      on-profile: prod,staging
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: true
+        # Secret name format: cliente-core/{environment}/database
+        # Example: cliente-core/prod/database
+        # Configured via environment variable: AWS_SECRETS_NAME
+        # Fallback: cliente-core/${spring.profiles.active}/database
+      region:
+        static: ${AWS_REGION:us-east-1}
+      credentials:
+        # Use IAM role (ECS task role or EC2 instance profile)
+        # NEVER hardcode access keys here!
+        instance-profile: true

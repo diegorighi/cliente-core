@@ -1,0 +1,52 @@
+# ============================================================================
+# Terraform Variables - EXAMPLE FILE
+# ============================================================================
+# INSTRUCTIONS:
+# 1. Copy this file to terraform.tfvars: cp terraform.tfvars.example terraform.tfvars
+# 2. Fill in the actual values (terraform.tfvars is .gitignored)
+# 3. NEVER commit terraform.tfvars to Git!
+#
+# ALTERNATIVE: Use environment variables (more secure for CI/CD):
+# export TF_VAR_db_password="your-secure-password"
+# export TF_VAR_jwt_signing_key="your-jwt-key"
+# ============================================================================
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "dev" # dev, staging, or prod
+
+# Secret Recovery Configuration
+secret_recovery_days = 7 # Days before permanent deletion (7-30)
+
+# ============================================================================
+# Database Configuration (PostgreSQL)
+# ============================================================================
+# DEVELOPMENT VALUES BELOW - Replace with actual production values!
+
+db_host     = "localhost"
+db_port     = 5432
+db_name     = "vanessa_mudanca_clientes"
+db_username = "postgres"
+db_password = "CHANGE_ME_TO_SECURE_PASSWORD_MIN_16_CHARS" # ⚠️ CRITICAL: Change this!
+
+# ============================================================================
+# JWT Authentication Configuration
+# ============================================================================
+# Generate a secure key with:
+# openssl rand -base64 32
+
+jwt_signing_key = "CHANGE_ME_TO_SECURE_JWT_KEY_MIN_32_CHARS_USE_OPENSSL_RAND" # ⚠️ CRITICAL: Change this!
+
+# ============================================================================
+# Monitoring Configuration
+# ============================================================================
+# Optional: SNS topic for CloudWatch alarms
+# sns_alarm_topic_arn = "arn:aws:sns:us-east-1:123456789012:cliente-core-alarms"
+
+# ============================================================================
+# Additional Tags (optional)
+# ============================================================================
+# additional_tags = {
+#   Owner = "DevOps Team"
+#   Cost  = "Engineering"
+# }

@@ -33,3 +33,68 @@ build/
 .vscode/
 # Maven wrapper with absolute paths (user-specific)
 mvn-vanessa.sh
+
+# ============================================================================
+# CRITICAL: Terraform Secrets (AWS Secrets Manager)
+# ============================================================================
+# NEVER commit these files - they contain sensitive credentials!
+
+# Terraform state files (contain resource IDs and outputs)
+terraform/secrets-manager/*.tfstate
+terraform/secrets-manager/*.tfstate.*
+terraform/secrets-manager/*.tfstate.backup
+
+# Variable files with sensitive values
+terraform/secrets-manager/terraform.tfvars
+terraform/secrets-manager/*.auto.tfvars
+terraform/secrets-manager/*.auto.tfvars.json
+
+# Terraform override files
+terraform/secrets-manager/override.tf
+terraform/secrets-manager/override.tf.json
+terraform/secrets-manager/*_override.tf
+terraform/secrets-manager/*_override.tf.json
+
+# Terraform CLI configuration
+terraform/secrets-manager/.terraformrc
+terraform/secrets-manager/terraform.rc
+
+# Terraform plugin cache
+terraform/secrets-manager/.terraform/
+terraform/secrets-manager/.terraform.d/
+
+# Crash log files
+terraform/secrets-manager/crash.log
+terraform/secrets-manager/crash.*.log
+
+# Plan output files
+terraform/secrets-manager/*.tfplan
+terraform/secrets-manager/*.plan
+
+# ============================================================================
+# CRITICAL: Application Secrets (Spring Boot)
+# ============================================================================
+# NEVER commit these files - they contain database passwords and API keys!
+
+# Local environment overrides (use AWS Secrets Manager instead!)
+src/main/resources/application-local.yml
+src/main/resources/application-secrets.yml
+src/main/resources/secrets.yml
+
+# Environment variables file
+.env
+.env.local
+.env.*.local
+
+# ============================================================================
+# Security & Keys
+# ============================================================================
+# Private keys, certificates, and credentials
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+secrets/
+credentials/
