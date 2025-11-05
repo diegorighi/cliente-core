@@ -11,7 +11,7 @@ Este serviço é o núcleo do cadastro de clientes, gerenciando informações pe
 ./setup-local.sh
 ```
 
-Este comando único configura todo o ambiente local (PostgreSQL + DynamoDB + aplicação + testes).
+Este comando único configura todo o ambiente local (PostgreSQL + aplicação + testes).
 
 **Tempo:** ~2 minutos | **Documentação completa:** [Como Subir Local Stack](docs/setup/COMO_SUBIR_LOCAL_STACK.md)
 
@@ -24,7 +24,7 @@ Este comando único configura todo o ambiente local (PostgreSQL + DynamoDB + apl
 
 ### Arquitetura & Features
 - **[Virtual Threads](docs/development/VIRTUAL_THREADS.md)** - Java 21 concurrency
-- **[DynamoDB Cache](docs/cache/DYNAMODB_CACHE_SUMMARY.md)** - Estratégia de cache
+- **[Caffeine Cache](docs/CACHE.md)** - Estratégia de cache
 - **[Liquibase Structure](docs/LIQUIBASE_STRUCTURE.md)** - Schema management
 - **[Integration Architecture](docs/INTEGRATION_ARCHITECTURE.md)** - Kafka + Step Functions
 
