@@ -80,5 +80,12 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
-      - run: mvn clean package -DskipTests
+          cache: maven
+      - name: Build with retry (handle Maven Central intermittent failures)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: mvn clean package -DskipTests
       - uses: github/codeql-action/analyze@v3
