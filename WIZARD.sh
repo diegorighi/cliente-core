@@ -289,7 +289,14 @@ log_step "ETAPA 7/8: Validações Funcionais"
 
 # Health Check
 log_info "Testando health check..."
-HEALTH_STATUS=$(curl -s http://localhost:8081/api/clientes/actuator/health | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+HEALTH_JSON=$(curl -s http://localhost:8081/api/clientes/actuator/health)
+
+if command -v jq &> /dev/null; then
+    HEALTH_STATUS=$(echo "$HEALTH_JSON" | jq -r '.status')
+else
+    HEALTH_STATUS=$(echo "$HEALTH_JSON" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+fi
+
 if [ "$HEALTH_STATUS" = "UP" ]; then
     log_success "Health check: UP"
 else
