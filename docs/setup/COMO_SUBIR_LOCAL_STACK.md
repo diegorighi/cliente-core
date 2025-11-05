@@ -19,8 +19,19 @@ Certifique-se de ter instalado:
 
 ## 🎯 Setup Completo Automático
 
+**Navegue até a raiz do projeto cliente-core:**
+
 ```bash
+# Se você está na raiz do monorepo (va-nessa-mudanca/)
 cd cliente-core
+./setup-local.sh
+
+# Se você está em qualquer subpasta (ex: docs/setup/)
+cd ../..        # Volta para a raiz do cliente-core
+./setup-local.sh
+
+# Ou use caminho absoluto
+cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core
 ./setup-local.sh
 ```
 
@@ -64,6 +75,10 @@ Se tudo funcionar, você verá:
 ---
 
 ## 🛠️ Comandos Úteis (Depois do Setup)
+
+> **⚠️ IMPORTANTE:** Todos os comandos abaixo devem ser executados da **raiz do projeto cliente-core**.
+>
+> Se você está em outra pasta: `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
 
 ```bash
 # Ver status dos serviços

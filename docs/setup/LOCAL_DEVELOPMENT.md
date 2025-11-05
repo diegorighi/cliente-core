@@ -15,6 +15,10 @@ Guia rápido para rodar cliente-core localmente **sem credenciais AWS**.
 
 ## 🏃 Quick Start (3 minutos)
 
+> **⚠️ IMPORTANTE:** Todos os comandos devem ser executados da **raiz do projeto cliente-core**.
+>
+> Navegue até a raiz: `cd ~/Desenvolvimento/va-nessa-mudanca/cliente-core`
+
 ### 1. Iniciar infraestrutura local
 
 ```bash
