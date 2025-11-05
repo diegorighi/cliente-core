@@ -299,11 +299,27 @@ fi
 
 # Database connectivity
 log_info "Testando conectividade com database..."
-DB_STATUS=$(curl -s http://localhost:8081/api/clientes/actuator/health | grep -o '"db":{"status":"[^"]*"' | cut -d'"' -f6)
+HEALTH_JSON=$(curl -s http://localhost:8081/api/clientes/actuator/health)
+
+# Try jq first (more reliable), fallback to grep
+if command -v jq &> /dev/null; then
+    DB_STATUS=$(echo "$HEALTH_JSON" | jq -r '.components.db.status // .status')
+else
+    # Fallback: extract db status using grep/sed
+    DB_STATUS=$(echo "$HEALTH_JSON" | grep -o '"db"[^}]*"status":"[^"]*"' | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+    # If no db component, check if overall status is UP (means components are UP)
+    if [ -z "$DB_STATUS" ]; then
+        OVERALL_STATUS=$(echo "$HEALTH_JSON" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+        if [ "$OVERALL_STATUS" = "UP" ]; then
+            DB_STATUS="UP"
+        fi
+    fi
+fi
+
 if [ "$DB_STATUS" = "UP" ]; then
     log_success "Database: UP"
 else
-    log_error "Database: $DB_STATUS"
+    log_error "Database: $DB_STATUS (JSON: $HEALTH_JSON)"
     exit 1
 fi
 

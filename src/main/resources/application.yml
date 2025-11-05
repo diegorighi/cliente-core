@@ -22,7 +22,8 @@ management:
         include: health,info,metrics,loggers,prometheus,caches
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
+      show-components: always
       probes:
         enabled: true
   metrics:
