@@ -13,13 +13,12 @@ Este serviço é o núcleo do cadastro de clientes, gerenciando informações pe
 
 Este comando único configura todo o ambiente local (PostgreSQL + DynamoDB + aplicação + testes).
 
-**Tempo:** ~2 minutos | **Documentação completa:** [docs/README-QUICK-START.md](docs/README-QUICK-START.md)
+**Tempo:** ~2 minutos | **Documentação completa:** [Como Subir Local Stack](docs/setup/COMO_SUBIR_LOCAL_STACK.md)
 
 ## 📚 Documentação
 
 ### Setup & Desenvolvimento
-- **[Quick Start](docs/README-QUICK-START.md)** - Comece aqui (1 página)
-- **[Setup Local Completo](docs/setup/COMO_SUBIR_LOCAL_STACK.md)** - Guia detalhado
+- **[Como Subir Local Stack](docs/setup/COMO_SUBIR_LOCAL_STACK.md)** - Guia completo de setup (COMECE AQUI)
 - **[Resumo do Setup](docs/setup/SETUP_LOCAL_SUMMARY.md)** - O que foi implementado
 - **[Desenvolvimento Local](docs/setup/LOCAL_DEVELOPMENT.md)** - Workflows diários
 
