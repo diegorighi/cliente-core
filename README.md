@@ -7,35 +7,57 @@ Este serviço é o núcleo do cadastro de clientes, gerenciando informações pe
 
 ## 🚀 Quick Start
 
+**👉 COMECE AQUI:** [GETTING_STARTED.md](GETTING_STARTED.md)
+
+### TL;DR (1 minuto)
+```bash
+# 1. Subir PostgreSQL
+docker-compose up -d
+
+# 2. Rodar aplicação
+mvn spring-boot:run
+
+# 3. Testar
+curl http://localhost:8081/api/clientes/actuator/health
+```
+
+### Setup Completo (2-3 minutos)
 ```bash
 ./setup-local.sh
 ```
 
-Este comando único configura todo o ambiente local (PostgreSQL + aplicação + testes).
+Este script configura **automaticamente** todo o ambiente local:
+- ✅ PostgreSQL 16 em `localhost:5432`
+- ✅ Liquibase migrations (DDL + 15 clientes exemplo)
+- ✅ Cache Caffeine in-memory (<1ms latency)
+- ✅ Smoke tests (health, db, cache)
+- ✅ Aplicação rodando em `http://localhost:8081/api/clientes`
 
-**Tempo:** ~2 minutos | **Documentação completa:** [Como Subir Local Stack](docs/setup/COMO_SUBIR_LOCAL_STACK.md)
+**Documentação completa:** [GETTING_STARTED.md](GETTING_STARTED.md)
+
+---
 
 ## 📚 Documentação
 
 ### Setup & Desenvolvimento
-- **[Como Subir Local Stack](docs/setup/COMO_SUBIR_LOCAL_STACK.md)** - Guia completo de setup (COMECE AQUI)
-- **[Resumo do Setup](docs/setup/SETUP_LOCAL_SUMMARY.md)** - O que foi implementado
-- **[Desenvolvimento Local](docs/setup/LOCAL_DEVELOPMENT.md)** - Workflows diários
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - 🎯 **COMECE AQUI** - Setup ultra-rápido
+- **[CLAUDE.md](CLAUDE.md)** - Guia para Claude Code (convenções, comandos, estrutura)
+- **[OWASP Setup](docs/setup/OWASP_SETUP.md)** - Security scanning
 
 ### Arquitetura & Features
-- **[Virtual Threads](docs/development/VIRTUAL_THREADS.md)** - Java 21 concurrency
-- **[Caffeine Cache](docs/CACHE.md)** - Estratégia de cache
-- **[Liquibase Structure](docs/LIQUIBASE_STRUCTURE.md)** - Schema management
+- **[Cache Strategy](docs/CACHE.md)** - Caffeine in-memory (<1ms latency)
 - **[Integration Architecture](docs/INTEGRATION_ARCHITECTURE.md)** - Kafka + Step Functions
+- **[Virtual Threads](docs/development/VIRTUAL_THREADS.md)** - Java 21 concurrency
+- **[Liquibase Structure](docs/LIQUIBASE_STRUCTURE.md)** - Database migrations
+- **[Liquibase Quickstart](docs/LIQUIBASE_QUICKSTART.md)** - Schema management
 
 ### Quality & Testing
-- **[CI/CD Strategy](docs/CI-CD-STRATEGY.md)** - Pipeline & workflows
-- **[QA Test Plans](docs/qa/)** - Planos de teste detalhados
-- **[SonarQube Setup](docs/SONARQUBE-SETUP.md)** - Code quality
+- **[QA Test Plans](docs/qa/)** - Planos de teste detalhados (32 cenários)
+- **[Documentation Index](docs/INDEX.md)** - Índice completo da documentação
 
-### Deploy & Infrastructure
-- **[Terraform Modules](terraform/)** - AWS infrastructure as code
-- **[Free Tier Guide](terraform/FREE_TIER_GUIDE.md)** - Deploy gratuito AWS
+### Infrastructure
+- **[Terraform Modules](terraform/)** - AWS infrastructure as code (se existir)
+- **[Maven Settings](docs/MAVEN_SETTINGS.md)** - Configuração Maven Central
 
 ---
 
