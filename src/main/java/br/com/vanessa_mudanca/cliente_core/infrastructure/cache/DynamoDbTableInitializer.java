@@ -116,6 +116,10 @@ public class DynamoDbTableInitializer {
 
             log.info("DynamoDB cache table created successfully: {}", tableName);
 
+        } catch (InterruptedException e) {
+            // Restore interrupted status
+            Thread.currentThread().interrupt();
+            log.error("Table creation interrupted", e);
         } catch (Exception e) {
             log.error("Error creating DynamoDB table", e);
         }
@@ -142,6 +146,11 @@ public class DynamoDbTableInitializer {
 
                 Thread.sleep(1000);  // Aguardar 1 segundo
 
+            } catch (InterruptedException e) {
+                // Restore interrupted status
+                Thread.currentThread().interrupt();
+                log.warn("Table status check interrupted: {}", e.getMessage());
+                break;  // Exit loop if interrupted
             } catch (Exception e) {
                 log.warn("Error checking table status: {}", e.getMessage());
             }
