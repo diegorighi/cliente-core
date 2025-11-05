@@ -1,21 +1,30 @@
 # Docker Compose for cliente-core Local Development
 #
-# This compose file provides all infrastructure dependencies for local development:
-# - PostgreSQL 16 database
+# ⚠️ FILOSOFIA: Este compose é MINIMALISTA - apenas o necessário para cliente-core
 #
-# Cache: Usando Caffeine in-memory (não requer infraestrutura externa)
+# Inclui:
+#   ✅ PostgreSQL 16 (database do cliente-core)
+#
+# NÃO inclui (propositalmente):
+#   ❌ Redis (cliente-core usa Caffeine in-memory)
+#   ❌ Kafka (não precisa para desenvolvimento isolado)
+#   ❌ DynamoDB (removido - agora usa Caffeine)
+#   ❌ Prometheus/Grafana (usa Actuator local)
+#
+# Para testar integrações com outros microserviços, use o docker-compose.yml da RAIZ do monorepo.
 #
 # Usage:
-#   Start all services:     docker-compose up -d
-#   Stop all services:      docker-compose down
-#   View logs:              docker-compose logs -f
-#   Reset everything:       docker-compose down -v
+#   Start:     docker-compose up -d
+#   Stop:      docker-compose down
+#   Logs:      docker-compose logs -f postgres
+#   Reset:     docker-compose down -v
 #
-# Services will be available at:
-#   PostgreSQL:    localhost:5432
+# Service available at:
+#   PostgreSQL: localhost:5432
+
+version: '3.8'
 
 services:
-  # PostgreSQL 16 Database
   postgres:
     image: postgres:16-alpine
     container_name: cliente-core-postgres
@@ -33,14 +42,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - cliente-core-network
     restart: unless-stopped
 
 volumes:
   postgres_data:
     driver: local
-
-networks:
-  cliente-core-network:
-    driver: bridge
