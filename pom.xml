@@ -146,17 +146,21 @@
 			<version>1.12.780</version>
 		</dependency>
 		<!-- AWS SDK v2 for better Spring Boot integration -->
+		<!-- REMOVED: Using direct environment variables in ECS instead
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>secretsmanager</artifactId>
 			<version>2.28.24</version>
 		</dependency>
+		-->
 		<!-- Spring Cloud AWS for seamless integration -->
+		<!-- REMOVED: Using direct environment variables in ECS instead
 		<dependency>
 			<groupId>io.awspring.cloud</groupId>
 			<artifactId>spring-cloud-aws-starter-secrets-manager</artifactId>
 			<version>3.2.1</version>
 		</dependency>
+		-->
 	</dependencies>
 
 	<build>

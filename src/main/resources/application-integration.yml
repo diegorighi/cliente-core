@@ -3,14 +3,6 @@ spring:
     activate:
       on-profile: integration
 
-  # Disable AWS services in tests
-  cloud:
-    aws:
-      secretsmanager:
-        enabled: false
-      region:
-        static: us-east-1
-
   # PostgreSQL connection configured via @DynamicPropertySource in AbstractIntegrationTest
   # DO NOT configure datasource.url here - it conflicts with TestContainers
   datasource:
