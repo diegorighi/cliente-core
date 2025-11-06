@@ -3,10 +3,13 @@ spring:
     activate:
       on-profile: test
 
-  # Disable AWS auto-configuration in tests
-  autoconfigure:
-    exclude:
-      - io.awspring.cloud.autoconfigure.config.secretsmanager.SecretsManagerAutoConfiguration
+  # Disable AWS services in tests
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: false
+      region:
+        static: us-east-1
 
   # H2 in-memory database for unit tests
   datasource:
