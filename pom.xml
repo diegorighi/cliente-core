@@ -140,11 +140,13 @@
 		</dependency>
 		<!-- AWS Secrets Manager - Secure storage for database credentials and API keys -->
 		<!-- CRITICAL: Never hardcode credentials in application.yml -->
+		<!-- REMOVED: Using direct environment variables in ECS instead
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-secretsmanager</artifactId>
 			<version>1.12.780</version>
 		</dependency>
+		-->
 		<!-- AWS SDK v2 for better Spring Boot integration -->
 		<!-- REMOVED: Using direct environment variables in ECS instead
 		<dependency>
