@@ -3,6 +3,11 @@ spring:
     activate:
       on-profile: test
 
+  # Disable AWS auto-configuration in tests
+  autoconfigure:
+    exclude:
+      - io.awspring.cloud.autoconfigure.config.secretsmanager.SecretsManagerAutoConfiguration
+
   # H2 in-memory database for unit tests
   datasource:
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_UPPER=false
