@@ -1,0 +1,35 @@
+# ============================================================================
+# Dockerfile para Desenvolvimento Local
+# ============================================================================
+# Usa imagem Maven com JDK 21 para compilar e rodar a aplicação
+#
+# Uso:
+#   docker-compose up --build
+#
+# ============================================================================
+
+FROM maven:3.9-eclipse-temurin-21-alpine
+
+# Metadados
+LABEL maintainer="Va Nessa Mudança <contato@vanessamudanca.com.br>"
+LABEL description="Cliente Core - Desenvolvimento Local"
+LABEL version="0.1.0"
+
+# Diretório de trabalho
+WORKDIR /app
+
+# Copiar pom.xml primeiro (cache de dependências)
+COPY pom.xml .
+
+# Download de dependências (cached layer)
+RUN mvn dependency:go-offline -B
+
+# Copiar código fonte
+COPY src ./src
+
+# Expor porta da aplicação
+EXPOSE 8081
+
+# Comando para rodar a aplicação em modo DEV
+# (Spring DevTools habilitado, hot reload)
+CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.profiles=dev"]

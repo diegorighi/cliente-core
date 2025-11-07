@@ -1,49 +1,71 @@
-# Docker Compose for cliente-core Local Development
-#
-# ⚠️ FILOSOFIA: Este compose é MINIMALISTA - apenas o necessário para cliente-core
-#
-# Inclui:
-#   ✅ PostgreSQL 16 (database do cliente-core)
-#
-# NÃO inclui (propositalmente):
-#   ❌ Redis (cliente-core usa Caffeine in-memory)
-#   ❌ Kafka (não precisa para desenvolvimento isolado)
-#   ❌ DynamoDB (removido - agora usa Caffeine)
-#   ❌ Prometheus/Grafana (usa Actuator local)
-#
-# Para testar integrações com outros microserviços, use o docker-compose.yml da RAIZ do monorepo.
-#
-# Usage:
-#   Start:     docker-compose up -d
-#   Stop:      docker-compose down
-#   Logs:      docker-compose logs -f postgres
-#   Reset:     docker-compose down -v
-#
-# Service available at:
-#   PostgreSQL: localhost:5432
-
-version: '3.8'
-
 services:
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
   postgres:
     image: postgres:16-alpine
     container_name: cliente-core-postgres
     environment:
-      POSTGRES_DB: vanessa_mudanca_clientes
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: senha123
-      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: clientes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d vanessa_mudanca_clientes"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - cliente-core-network
+
+  # ============================================================================
+  # Spring Boot Application
+  # ============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cliente-core-app
+    environment:
+      # Spring Profile (dev = sem OAuth2, prod = com OAuth2)
+      SPRING_PROFILES_ACTIVE: dev
+
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clientes
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+      # Server Configuration
+      SERVER_PORT: 8081
+
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_BR_COM_VANESSA_MUDANCA: DEBUG
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cliente-core-network
+    volumes:
+      # Mapear código fonte para hot reload (desenvolvimento)
+      - ./target:/app/target
     restart: unless-stopped
 
+# ============================================================================
+# Volumes
+# ============================================================================
 volumes:
   postgres_data:
     driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  cliente-core-network:
+    driver: bridge

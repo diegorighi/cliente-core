@@ -21,10 +21,23 @@ import org.springframework.security.web.SecurityFilterChain;
 @Profile("dev")
 public class DevSecurityConfig {
 
+    /**
+     * IMPORTANTE: Não usar @EnableMethodSecurity aqui!
+     * No profile dev, queremos desabilitar TODAS as validações de segurança,
+     * incluindo @PreAuthorize, @Secured, etc. dos controllers.
+     *
+     * Se usar @EnableMethodSecurity, os @PreAuthorize dos controllers
+     * vão bloquear requisições mesmo com permitAll() abaixo.
+     *
+     * A configuração de Method Security está em DevMethodSecurityConfig.java
+     */
+
     @Bean
     public SecurityFilterChain devFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            // Adiciona filtro que injeta authentication com todas as authorities
+            .addFilterBefore(new DevAuthenticationFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll() // Permite TODAS as requisições sem autenticação
             );

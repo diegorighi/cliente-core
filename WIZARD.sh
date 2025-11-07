@@ -87,12 +87,8 @@ log_warning() {
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 cleanup() {
-    if [ -n "$SPRING_BOOT_PID" ]; then
-        log_info "Encerrando Spring Boot (PID: $SPRING_BOOT_PID)..."
-        kill $SPRING_BOOT_PID 2>/dev/null || true
-        wait $SPRING_BOOT_PID 2>/dev/null || true
-        log_success "Spring Boot encerrado"
-    fi
+    # Containers são gerenciados pelo docker-compose, não precisa cleanup manual
+    :
 }
 
 trap cleanup EXIT
@@ -112,7 +108,7 @@ log "${NC}"
 log "${MAGENTA}  Validação Completa do Ambiente de Desenvolvimento${NC}"
 log "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 log ""
-log "  ${WIZARD} Validando 8 etapas automaticamente..."
+log "  ${WIZARD} Validando 6 etapas automaticamente..."
 log "  ${ARROW} Logs salvos em: ${CYAN}$LOG_FILE${NC}"
 log ""
 
@@ -190,12 +186,16 @@ docker stop cliente-core-postgres 2>/dev/null || true
 docker rm cliente-core-postgres 2>/dev/null || true
 log_success "Containers órfãos removidos"
 
-log_info "Iniciando PostgreSQL..."
-docker-compose up -d >> "$LOG_FILE" 2>&1
+log_info "Limpando volumes corrompidos..."
+docker volume rm cliente-core_postgres_data 2>/dev/null || true
+log_success "Volumes limpos"
+
+log_info "Iniciando containers (PostgreSQL + App)..."
+docker-compose up -d --build >> "$LOG_FILE" 2>&1
 
 log_info "Aguardando PostgreSQL ficar pronto (máx 30s)..."
 for i in {1..30}; do
-    if docker exec cliente-core-postgres pg_isready -U user -d vanessa_mudanca_clientes &>/dev/null; then
+    if docker exec cliente-core-postgres pg_isready -U postgres -d clientes &>/dev/null; then
         log_success "PostgreSQL pronto em ${i}s"
         break
     fi
@@ -209,7 +209,7 @@ done
 
 # Testar conectividade
 log_info "Testando conectividade com PostgreSQL..."
-if docker exec cliente-core-postgres psql -U user -d vanessa_mudanca_clientes -c "SELECT 1;" &>/dev/null; then
+if docker exec cliente-core-postgres psql -U postgres -d clientes -c "SELECT 1;" &>/dev/null; then
     log_success "Conexão PostgreSQL OK"
 else
     log_error "Falha ao conectar no PostgreSQL"
@@ -217,66 +217,22 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ETAPA 4: Build Maven
+# ETAPA 4: Aguardar Aplicação Spring Boot (container)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-log_step "ETAPA 4/8: Build Maven"
+log_step "ETAPA 4/6: Aguardando Aplicação Spring Boot"
 
-log_info "Executando mvn clean install (pode demorar 1-2 min)..."
-if mvn clean install -DskipTests >> "$LOG_FILE" 2>&1; then
-    log_success "Build Maven concluído"
-else
-    log_error "Build Maven falhou. Veja logs: $LOG_FILE"
-    exit 1
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ETAPA 5: Testes
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-log_step "ETAPA 5/8: Executando Testes"
-
-log_info "Rodando 250+ testes com JaCoCo coverage (1-2 min)..."
-if mvn test >> "$LOG_FILE" 2>&1; then
-    log_success "Todos os testes passaram"
-else
-    log_error "Alguns testes falharam. Veja logs: $LOG_FILE"
-    exit 1
-fi
-
-# Verificar coverage
-log_info "Verificando coverage (target: >=80%)..."
-if [ -f "target/site/jacoco/index.html" ]; then
-    COVERAGE=$(grep -A 5 "Total" target/site/jacoco/index.html | grep -o '[0-9]\+%' | head -1 | tr -d '%')
-    if [ "$COVERAGE" -ge 80 ]; then
-        log_success "Coverage: ${COVERAGE}% (target: >=80%)"
-    else
-        log_warning "Coverage: ${COVERAGE}% (abaixo de 80%)"
-    fi
-else
-    log_warning "Relatório JaCoCo não encontrado"
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ETAPA 6: Iniciar Aplicação Spring Boot
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-log_step "ETAPA 6/8: Iniciando Aplicação Spring Boot"
-
-log_info "Iniciando aplicação em background..."
-mvn spring-boot:run >> "$LOG_FILE" 2>&1 &
-SPRING_BOOT_PID=$!
-
-log_info "Aguardando aplicação ficar pronta (máx 60s)..."
-for i in {1..60}; do
+log_info "Aguardando container cliente-core-app ficar pronto (máx 120s)..."
+for i in {1..120}; do
     if curl -s http://localhost:8081/api/clientes/actuator/health &>/dev/null; then
-        log_success "Aplicação iniciada em ${i}s (PID: $SPRING_BOOT_PID)"
+        log_success "Aplicação iniciada em ${i}s"
         break
     fi
     sleep 1
-    if [ $i -eq 60 ]; then
-        log_error "Aplicação não ficou pronta em 60s"
-        tail -50 "$LOG_FILE"
+    if [ $i -eq 120 ]; then
+        log_error "Aplicação não ficou pronta em 120s"
+        log_info "Últimos logs do container:"
+        docker-compose logs --tail=50 app
         exit 1
     fi
 done
@@ -285,7 +241,7 @@ done
 # ETAPA 7: Validações Funcionais
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-log_step "ETAPA 7/8: Validações Funcionais"
+log_step "ETAPA 5/6: Validações Funcionais"
 
 # Health Check
 log_info "Testando health check..."
@@ -366,7 +322,7 @@ fi
 # ETAPA 8: Observabilidade
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-log_step "ETAPA 8/8: Observabilidade (Prometheus Metrics)"
+log_step "ETAPA 6/6: Observabilidade (Prometheus Metrics)"
 
 log_info "Testando endpoint Prometheus..."
 if curl -s http://localhost:8081/api/clientes/actuator/prometheus | grep -q "jvm_memory_used_bytes"; then
@@ -411,20 +367,17 @@ log ""
 log "  ${ARROW} Ver métricas de cache:"
 log "      ${CYAN}curl http://localhost:8081/api/clientes/actuator/metrics/cache.gets${NC}"
 log ""
-log "  ${ARROW} Ver coverage report:"
-log "      ${CYAN}open target/site/jacoco/index.html${NC}"
+log "  ${ARROW} Ver logs dos containers:"
+log "      ${CYAN}docker-compose logs -f${NC}  # Todos os logs"
+log "      ${CYAN}docker-compose logs -f app${NC}  # Apenas Spring Boot"
 log ""
 log "  ${ARROW} Para parar tudo:"
-log "      ${CYAN}kill $SPRING_BOOT_PID${NC}  # Spring Boot"
-log "      ${CYAN}docker-compose down${NC}    # PostgreSQL"
+log "      ${CYAN}docker-compose down${NC}    # Para todos os containers"
 log ""
 log "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-log "${YELLOW}  ⚠ Spring Boot rodando em background (PID: $SPRING_BOOT_PID)${NC}"
-log "${YELLOW}  ⚠ Para encerrar: kill $SPRING_BOOT_PID${NC}"
+log "${YELLOW}  ⚠ Containers rodando em background (PostgreSQL + Spring Boot)${NC}"
+log "${YELLOW}  ⚠ Para encerrar: docker-compose down${NC}"
 log "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 log ""
-
-# Remover trap para NÃO matar o Spring Boot ao final
-trap - EXIT
 
 exit 0

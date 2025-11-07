@@ -1,357 +1,234 @@
 #!/bin/bash
-# 🚀 Setup Local Completo - Cliente Core
-# Um único comando para subir TUDO localmente
-# Uso: ./setup-local.sh
 
-set -e
+# ============================================================================
+# Script de Setup Local - cliente-core
+# ============================================================================
+# Este script configura o ambiente de desenvolvimento local automaticamente
+#
+# Uso:
+#   ./setup-local.sh
+#
+# O que ele faz:
+#   1. Cria arquivo .env com variáveis de ambiente DEV
+#   2. Cria banco de dados PostgreSQL local
+#   3. Verifica se PostgreSQL está rodando
+#   4. Instrui como rodar a aplicação
+# ============================================================================
 
-# Cores
-COLOR_GREEN='\033[0;32m'
-COLOR_YELLOW='\033[1;33m'
-COLOR_RED='\033[0;31m'
-COLOR_BLUE='\033[0;34m'
-COLOR_CYAN='\033[0;36m'
-COLOR_NC='\033[0m' # No Color
+set -euo pipefail
 
-print_banner() {
-    clear
-    echo ""
-    echo -e "${COLOR_BLUE}╔═══════════════════════════════════════════════════════════════════╗${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}                                                                   ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}  ${COLOR_CYAN}🚀 CLIENTE-CORE - Setup Local Automático${COLOR_NC}                   ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}                                                                   ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}  ${COLOR_YELLOW}Este script vai:${COLOR_NC}                                          ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Verificar dependências (Java, Maven, Docker)              ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Subir infraestrutura (PostgreSQL apenas)                  ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Configurar cache Caffeine in-memory automaticamente       ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Buildar e startar a aplicação                             ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}    ✓ Rodar smoke tests (health check + cache)                  ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}║${COLOR_NC}                                                                   ${COLOR_BLUE}║${COLOR_NC}"
-    echo -e "${COLOR_BLUE}╚═══════════════════════════════════════════════════════════════════╝${COLOR_NC}"
-    echo ""
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
-print_step() {
-    echo ""
-    echo -e "${COLOR_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_NC}"
-    echo -e "${COLOR_CYAN}▶ $1${COLOR_NC}"
-    echo -e "${COLOR_CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_NC}"
-    echo ""
+log_success() {
+    echo -e "${GREEN}✅ $1${NC}"
 }
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+separator() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# ============================================================================
+# Passo 1: Criar arquivo .env
+# ============================================================================
+
+setup_env_file() {
+    separator
+    log_info "Passo 1: Configurando arquivo .env"
+    separator
+
+    if [ -f .env ]; then
+        log_warning "Arquivo .env já existe"
+        read -p "Deseja sobrescrever? (s/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+            log_info "Mantendo .env existente"
+            return 0
+        fi
+    fi
+
+    log_info "Criando .env a partir de .env.example..."
+    cp .env.example .env
+
+    log_success "Arquivo .env criado com sucesso!"
+    log_info "Você pode editar o arquivo .env para personalizar as configurações"
+    echo
+}
+
+# ============================================================================
+# Passo 2: Verificar PostgreSQL
+# ============================================================================
+
+check_postgres() {
+    separator
+    log_info "Passo 2: Verificando PostgreSQL"
+    separator
+
+    if ! command -v psql &> /dev/null; then
+        log_error "PostgreSQL não está instalado"
+        log_info "Instale PostgreSQL com Homebrew:"
+        echo "  brew install postgresql@16"
+        echo "  brew services start postgresql@16"
+        exit 1
+    fi
+
+    log_success "PostgreSQL está instalado"
+
+    # Testar conexão
+    if psql -U postgres -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw postgres; then
+        log_success "PostgreSQL está rodando"
+    else
+        log_warning "PostgreSQL não está respondendo"
+        log_info "Inicie o PostgreSQL com:"
+        echo "  brew services start postgresql@16"
+        echo
+        log_info "Ou rode manualmente:"
+        echo "  pg_ctl -D /opt/homebrew/var/postgresql@16 start"
+        exit 1
+    fi
+    echo
+}
+
+# ============================================================================
+# Passo 3: Criar banco de dados
+# ============================================================================
+
+create_database() {
+    separator
+    log_info "Passo 3: Criando banco de dados 'clientes'"
+    separator
+
+    # Verificar se banco existe
+    if psql -U postgres -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw clientes; then
+        log_warning "Banco 'clientes' já existe"
+        read -p "Deseja recriar o banco? ATENÇÃO: Todos os dados serão perdidos! (s/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Ss]$ ]]; then
+            log_info "Dropando banco existente..."
+            psql -U postgres -c "DROP DATABASE clientes;" 2>/dev/null || true
+            log_info "Criando banco novamente..."
+            psql -U postgres -c "CREATE DATABASE clientes;"
+            log_success "Banco recriado com sucesso!"
+        else
+            log_info "Mantendo banco existente"
+        fi
+    else
+        log_info "Criando banco 'clientes'..."
+        psql -U postgres -c "CREATE DATABASE clientes;"
+        log_success "Banco criado com sucesso!"
+    fi
+    echo
+}
+
+# ============================================================================
+# Passo 4: Verificar dependências
+# ============================================================================
 
 check_dependencies() {
-    print_step "1️⃣  Verificando Dependências"
+    separator
+    log_info "Passo 4: Verificando dependências"
+    separator
 
-    local all_ok=true
-
-    # Java 21+
-    if command -v java &> /dev/null; then
-        JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
-        if [ "$JAVA_VERSION" -ge 21 ]; then
-            echo -e "  ${COLOR_GREEN}✅ Java $JAVA_VERSION instalado${COLOR_NC}"
-        else
-            echo -e "  ${COLOR_RED}❌ Java 21+ necessário (atual: $JAVA_VERSION)${COLOR_NC}"
-            all_ok=false
-        fi
-    else
-        echo -e "  ${COLOR_RED}❌ Java não encontrado${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Instale: https://adoptium.net/${COLOR_NC}"
-        all_ok=false
-    fi
-
-    # Maven 3.9+
-    if command -v mvn &> /dev/null; then
-        MVN_VERSION=$(mvn -v 2>&1 | head -n 1 | cut -d' ' -f3)
-        echo -e "  ${COLOR_GREEN}✅ Maven $MVN_VERSION instalado${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_RED}❌ Maven não encontrado${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Instale: brew install maven${COLOR_NC}"
-        all_ok=false
-    fi
-
-    # Docker
-    if command -v docker &> /dev/null; then
-        if docker info &> /dev/null; then
-            DOCKER_VERSION=$(docker --version | cut -d' ' -f3 | tr -d ',')
-            echo -e "  ${COLOR_GREEN}✅ Docker $DOCKER_VERSION rodando${COLOR_NC}"
-        else
-            echo -e "  ${COLOR_RED}❌ Docker instalado mas não está rodando${COLOR_NC}"
-            echo -e "     ${COLOR_YELLOW}Inicie o Docker Desktop${COLOR_NC}"
-            all_ok=false
-        fi
-    else
-        echo -e "  ${COLOR_RED}❌ Docker não encontrado${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Instale: https://docker.com${COLOR_NC}"
-        all_ok=false
-    fi
-
-    # Docker Compose
-    if command -v docker-compose &> /dev/null || docker compose version &> /dev/null; then
-        echo -e "  ${COLOR_GREEN}✅ Docker Compose instalado${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_RED}❌ Docker Compose não encontrado${COLOR_NC}"
-        all_ok=false
-    fi
-
-    # Opcionais (warnings apenas)
-    if command -v jq &> /dev/null; then
-        echo -e "  ${COLOR_GREEN}✅ jq instalado (opcional)${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_YELLOW}⚠️  jq não instalado (testes de JSON não funcionarão)${COLOR_NC}"
-        echo -e "     ${COLOR_YELLOW}Instale: brew install jq${COLOR_NC}"
-    fi
-
-    if [ "$all_ok" = false ]; then
-        echo ""
-        echo -e "${COLOR_RED}❌ Dependências obrigatórias faltando. Corrija e tente novamente.${COLOR_NC}"
+    # Java
+    if ! command -v java &> /dev/null; then
+        log_error "Java não está instalado"
+        log_info "Instale Java 21 com SDKMAN:"
+        echo "  curl -s \"https://get.sdkman.io\" | bash"
+        echo "  sdk install java 21.0.1-tem"
         exit 1
     fi
 
-    echo ""
-    echo -e "${COLOR_GREEN}✅ Todas as dependências OK!${COLOR_NC}"
-}
-
-stop_existing_services() {
-    print_step "2️⃣  Limpando Ambiente Anterior"
-
-    # Parar aplicação se estiver rodando
-    if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-        echo -e "  ${COLOR_YELLOW}⚠️  Aplicação rodando na porta 8081, parando...${COLOR_NC}"
-        PID=$(lsof -Pi :8081 -sTCP:LISTEN -t)
-        kill $PID 2>/dev/null || true
-        sleep 2
-    fi
-
-    # Parar e remover containers órfãos (força recreação)
-    if docker ps -a --filter "name=cliente-core" --format "{{.Names}}" | grep -q "cliente-core"; then
-        echo -e "  ${COLOR_YELLOW}⚠️  Containers anteriores detectados, removendo completamente...${COLOR_NC}"
-
-        # Parar todos os containers relacionados
-        docker ps -a --filter "name=cliente-core" --format "{{.ID}}" | while read container_id; do
-            echo -e "     ${COLOR_YELLOW}→ Parando container: $container_id${COLOR_NC}"
-            docker stop "$container_id" 2>/dev/null || true
-        done
-
-        # Remover containers, networks, volumes órfãos
-        docker-compose down --remove-orphans --volumes 2>/dev/null || true
-
-        # Double-check: remover manualmente se ainda existir
-        docker ps -a --filter "name=cliente-core" --format "{{.ID}}" | while read container_id; do
-            echo -e "     ${COLOR_YELLOW}→ Removendo container órfão: $container_id${COLOR_NC}"
-            docker rm -f "$container_id" 2>/dev/null || true
-        done
-
-        # Remover networks órfãs
-        docker network ls --filter "name=cliente-core" --format "{{.ID}}" | while read network_id; do
-            docker network rm "$network_id" 2>/dev/null || true
-        done
-
-        echo -e "  ${COLOR_GREEN}✅ Containers e networks removidos${COLOR_NC}"
-    fi
-
-    # Limpar volumes órfãos do PostgreSQL (dados temporários)
-    ORPHAN_VOLUMES=$(docker volume ls --filter "name=cliente-core" --format "{{.Name}}")
-    if [ -n "$ORPHAN_VOLUMES" ]; then
-        echo -e "  ${COLOR_YELLOW}⚠️  Volumes órfãos detectados, removendo...${COLOR_NC}"
-        echo "$ORPHAN_VOLUMES" | while read volume; do
-            echo -e "     ${COLOR_YELLOW}→ Removendo volume: $volume${COLOR_NC}"
-            docker volume rm "$volume" 2>/dev/null || true
-        done
-    fi
-
-    echo -e "  ${COLOR_GREEN}✅ Ambiente limpo (força recreação de tudo)${COLOR_NC}"
-}
-
-start_infrastructure() {
-    print_step "3️⃣  Iniciando Infraestrutura"
-
-    echo -e "  ${COLOR_BLUE}▶ Subindo PostgreSQL...${COLOR_NC}"
-    docker-compose up -d
-
-    echo -e "  ${COLOR_YELLOW}⏳ Aguardando PostgreSQL ficar pronto (5s)...${COLOR_NC}"
-    sleep 5
-
-    # Verificar PostgreSQL
-    if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-        echo -e "  ${COLOR_GREEN}✅ PostgreSQL rodando (porta 5432)${COLOR_NC}"
-    else
-        echo -e "  ${COLOR_RED}❌ PostgreSQL falhou ao iniciar${COLOR_NC}"
+    JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d'.' -f1)
+    if [ "$JAVA_VERSION" -lt 21 ]; then
+        log_error "Java 21+ é necessário (versão instalada: $JAVA_VERSION)"
         exit 1
     fi
+    log_success "Java $JAVA_VERSION instalado"
 
-    echo ""
-    echo -e "  ${COLOR_GREEN}✅ Infraestrutura pronta!${COLOR_NC}"
-    echo -e "  ${COLOR_BLUE}ℹ️  Cache: Caffeine in-memory (configurado automaticamente)${COLOR_NC}"
-}
-
-build_application() {
-    print_step "4️⃣  Buildando Aplicação"
-
-    echo -e "  ${COLOR_BLUE}▶ Executando: mvn clean install -DskipTests${COLOR_NC}"
-    echo -e "  ${COLOR_YELLOW}⏳ Isso pode demorar 1-2 minutos...${COLOR_NC}"
-    echo ""
-
-    mvn clean install -DskipTests -q
-
-    if [ $? -eq 0 ]; then
-        echo ""
-        echo -e "  ${COLOR_GREEN}✅ Build concluído com sucesso${COLOR_NC}"
-    else
-        echo ""
-        echo -e "  ${COLOR_RED}❌ Build falhou${COLOR_NC}"
+    # Maven
+    if ! command -v mvn &> /dev/null; then
+        log_error "Maven não está instalado"
+        log_info "Instale Maven com Homebrew:"
+        echo "  brew install maven"
         exit 1
     fi
-}
-
-start_application() {
-    print_step "5️⃣  Iniciando Aplicação"
-
-    echo -e "  ${COLOR_BLUE}▶ Executando: mvn spring-boot:run (background)${COLOR_NC}"
-    echo -e "  ${COLOR_YELLOW}⏳ Aguardando startup (pode demorar 10-15s)...${COLOR_NC}"
-    echo ""
-
-    # Iniciar em background
-    mvn spring-boot:run > /tmp/cliente-core-startup.log 2>&1 &
-    APP_PID=$!
-
-    # Aguardar até 30 segundos pelo startup
-    TIMEOUT=30
-    ELAPSED=0
-
-    while [ $ELAPSED -lt $TIMEOUT ]; do
-        if curl -s http://localhost:8081/api/clientes/actuator/health > /dev/null 2>&1; then
-            echo -e "  ${COLOR_GREEN}✅ Aplicação iniciada (PID: $APP_PID)${COLOR_NC}"
-            return
-        fi
-
-        # Verificar se processo ainda está rodando
-        if ! kill -0 $APP_PID 2>/dev/null; then
-            echo -e "  ${COLOR_RED}❌ Aplicação falhou ao iniciar${COLOR_NC}"
-            echo -e "  ${COLOR_YELLOW}Últimas linhas do log:${COLOR_NC}"
-            tail -20 /tmp/cliente-core-startup.log
-            exit 1
-        fi
-
-        sleep 1
-        ELAPSED=$((ELAPSED + 1))
-
-        # Mostrar progresso
-        if [ $((ELAPSED % 3)) -eq 0 ]; then
-            echo -e "  ${COLOR_YELLOW}⏳ Aguardando... (${ELAPSED}s)${COLOR_NC}"
-        fi
-    done
-
-    echo -e "  ${COLOR_RED}❌ Timeout ao aguardar startup da aplicação${COLOR_NC}"
-    exit 1
-}
-
-run_smoke_tests() {
-    print_step "6️⃣  Executando Smoke Tests"
-
-    # Test 1: Health Check
-    echo -e "  ${COLOR_BLUE}▶ Test 1/4: Health Check${COLOR_NC}"
-    HEALTH=$(curl -s http://localhost:8081/api/clientes/actuator/health | jq -r '.status' 2>/dev/null)
-    if [ "$HEALTH" = "UP" ]; then
-        echo -e "    ${COLOR_GREEN}✅ Health: UP${COLOR_NC}"
-    else
-        echo -e "    ${COLOR_RED}❌ Health: $HEALTH${COLOR_NC}"
-        exit 1
-    fi
-
-    # Test 2: Database (listar clientes PF)
-    echo -e "  ${COLOR_BLUE}▶ Test 2/4: Database (Seeds Liquibase)${COLOR_NC}"
-    COUNT=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf?page=0&size=1" | jq -r '.totalElements' 2>/dev/null)
-    if [ "$COUNT" -gt 0 ]; then
-        echo -e "    ${COLOR_GREEN}✅ Database: $COUNT clientes PF encontrados${COLOR_NC}"
-    else
-        echo -e "    ${COLOR_RED}❌ Database: Nenhum cliente encontrado${COLOR_NC}"
-        exit 1
-    fi
-
-    # Test 3: Cache (primeira busca - MISS)
-    echo -e "  ${COLOR_BLUE}▶ Test 3/4: Cache MISS (primeira busca)${COLOR_NC}"
-    UUID=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf?page=0&size=1" | jq -r '.content[0].publicId' 2>/dev/null)
-    START=$(date +%s%N)
-    NOME=$(curl -s "http://localhost:8081/api/clientes/v1/clientes/pf/$UUID" | jq -r '.nomeCompleto' 2>/dev/null)
-    END=$(date +%s%N)
-    TIME1=$(echo "scale=2; ($END - $START) / 1000000" | bc 2>/dev/null || echo "N/A")
-
-    if [ -n "$NOME" ] && [ "$NOME" != "null" ]; then
-        echo -e "    ${COLOR_GREEN}✅ Cliente: $NOME (${TIME1}ms)${COLOR_NC}"
-    else
-        echo -e "    ${COLOR_RED}❌ Erro ao buscar cliente${COLOR_NC}"
-        exit 1
-    fi
-
-    # Test 4: Cache (segunda busca - HIT)
-    echo -e "  ${COLOR_BLUE}▶ Test 4/4: Cache HIT (segunda busca - Caffeine)${COLOR_NC}"
-    sleep 1
-    START=$(date +%s%N)
-    curl -s "http://localhost:8081/api/clientes/v1/clientes/pf/$UUID" > /dev/null 2>&1
-    END=$(date +%s%N)
-    TIME2=$(echo "scale=2; ($END - $START) / 1000000" | bc 2>/dev/null || echo "N/A")
-
-    echo -e "    ${COLOR_GREEN}✅ Cache: ${TIME2}ms (<1ms esperado)${COLOR_NC}"
-
-    # Verificar métricas do Caffeine
-    if command -v jq &> /dev/null; then
-        CACHE_GETS=$(curl -s http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq -r '.measurements[0].value' 2>/dev/null || echo "0")
-        echo -e "    ${COLOR_GREEN}✅ Caffeine: $CACHE_GETS cache hits${COLOR_NC}"
-    fi
-}
-
-print_success_summary() {
-    echo ""
-    echo -e "${COLOR_GREEN}╔═══════════════════════════════════════════════════════════════════╗${COLOR_NC}"
-    echo -e "${COLOR_GREEN}║${COLOR_NC}                                                                   ${COLOR_GREEN}║${COLOR_NC}"
-    echo -e "${COLOR_GREEN}║${COLOR_NC}  ${COLOR_CYAN}🎉 SUCESSO! Cliente-Core rodando localmente!${COLOR_NC}                ${COLOR_GREEN}║${COLOR_NC}"
-    echo -e "${COLOR_GREEN}║${COLOR_NC}                                                                   ${COLOR_GREEN}║${COLOR_NC}"
-    echo -e "${COLOR_GREEN}╚═══════════════════════════════════════════════════════════════════╝${COLOR_NC}"
-    echo ""
-    echo -e "${COLOR_CYAN}📋 URLs Disponíveis:${COLOR_NC}"
-    echo -e "   🌐 API Base:       ${COLOR_YELLOW}http://localhost:8081/api/clientes${COLOR_NC}"
-    echo -e "   💚 Health Check:   ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/health${COLOR_NC}"
-    echo -e "   📊 Metrics:        ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/metrics${COLOR_NC}"
-    echo -e "   🗃️  Cache Stats:    ${COLOR_YELLOW}http://localhost:8081/api/clientes/actuator/caches${COLOR_NC}"
-    echo -e "   📖 API Docs:       ${COLOR_YELLOW}http://localhost:8081/api/clientes/swagger-ui${COLOR_NC}"
-    echo ""
-    echo -e "${COLOR_CYAN}🗄️  Infraestrutura:${COLOR_NC}"
-    echo -e "   🐘 PostgreSQL:     ${COLOR_YELLOW}localhost:5432${COLOR_NC} (user/senha123)"
-    echo -e "   ⚡ Cache:           ${COLOR_YELLOW}Caffeine in-memory${COLOR_NC} (<1ms latency)"
-    echo ""
-    echo -e "${COLOR_CYAN}🛠️  Comandos Úteis:${COLOR_NC}"
-    echo -e "   ${COLOR_YELLOW}./local-dev.sh status${COLOR_NC}      - Ver status dos serviços"
-    echo -e "   ${COLOR_YELLOW}./local-dev.sh test-cache${COLOR_NC}  - Testar cache em detalhes"
-    echo -e "   ${COLOR_YELLOW}./local-dev.sh stop${COLOR_NC}        - Parar tudo"
-    echo -e "   ${COLOR_YELLOW}./local-dev.sh logs${COLOR_NC}        - Ver logs dos containers"
-    echo ""
-    echo -e "${COLOR_CYAN}📝 Exemplos de Chamadas:${COLOR_NC}"
-    echo ""
-    echo -e "   ${COLOR_BLUE}# Listar clientes PF${COLOR_NC}"
-    echo -e "   ${COLOR_YELLOW}curl http://localhost:8081/api/clientes/v1/clientes/pf | jq${COLOR_NC}"
-    echo ""
-    echo -e "   ${COLOR_BLUE}# Buscar por ID${COLOR_NC}"
-    echo -e "   ${COLOR_YELLOW}curl http://localhost:8081/api/clientes/v1/clientes/pf/$UUID | jq${COLOR_NC}"
-    echo ""
-    echo -e "   ${COLOR_BLUE}# Ver métricas do cache${COLOR_NC}"
-    echo -e "   ${COLOR_YELLOW}curl http://localhost:8081/api/clientes/actuator/metrics/cache.gets | jq${COLOR_NC}"
-    echo ""
-    echo -e "${COLOR_GREEN}✨ Pronto para desenvolver!${COLOR_NC}"
-    echo ""
+    log_success "Maven instalado"
+    echo
 }
 
 # ============================================================================
-# Main Execution
+# Passo 5: Instruções finais
 # ============================================================================
 
-print_banner
+show_instructions() {
+    separator
+    echo -e "${GREEN}🎉 SETUP CONCLUÍDO COM SUCESSO!${NC}"
+    separator
+    echo
+    log_info "PRÓXIMOS PASSOS:"
+    echo
+    echo "  1️⃣  Rode a aplicação:"
+    echo -e "      ${YELLOW}mvn spring-boot:run${NC}"
+    echo
+    echo "  2️⃣  Acesse o health check:"
+    echo -e "      ${YELLOW}curl http://localhost:8081/api/clientes/actuator/health${NC}"
+    echo
+    echo "  3️⃣  Verifique os logs:"
+    echo "      A aplicação carregará automaticamente o perfil DEV (sem OAuth2)"
+    echo
+    echo "  4️⃣  O Liquibase criará as tabelas e seed data automaticamente"
+    echo
+    separator
+    log_info "VARIÁVEIS DE AMBIENTE CONFIGURADAS (arquivo .env):"
+    echo
+    echo "  • SPRING_PROFILES_ACTIVE=dev      (sem OAuth2, sem autenticação)"
+    echo "  • SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/clientes"
+    echo "  • SPRING_DATASOURCE_USERNAME=postgres"
+    echo "  • SPRING_DATASOURCE_PASSWORD=postgres"
+    echo
+    separator
+    log_warning "IMPORTANTE:"
+    echo
+    echo "  • O arquivo .env NÃO deve ser commitado (está no .gitignore)"
+    echo "  • Cada desenvolvedor deve criar seu próprio .env local"
+    echo "  • Para produção, as variáveis são definidas no ECS Task Definition"
+    echo
+    separator
+}
 
-check_dependencies
-stop_existing_services
-start_infrastructure
-build_application
-start_application
-run_smoke_tests
-print_success_summary
+# ============================================================================
+# Main
+# ============================================================================
 
-exit 0
+main() {
+    clear
+    separator
+    echo -e "${BLUE}🚀 SETUP AMBIENTE LOCAL - cliente-core${NC}"
+    separator
+    echo
+
+    setup_env_file
+    check_postgres
+    create_database
+    check_dependencies
+    show_instructions
+}
+
+# Executar
+main "$@"
