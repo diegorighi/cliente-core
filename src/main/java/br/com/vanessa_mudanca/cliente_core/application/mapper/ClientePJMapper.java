@@ -2,10 +2,18 @@ package br.com.vanessa_mudanca.cliente_core.application.mapper;
 
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePJRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePJResponse;
+import br.com.vanessa_mudanca.cliente_core.application.dto.output.ContatoResponse;
+import br.com.vanessa_mudanca.cliente_core.application.dto.output.DocumentoResponse;
+import br.com.vanessa_mudanca.cliente_core.application.dto.output.EnderecoResponse;
 import br.com.vanessa_mudanca.cliente_core.domain.entity.Cliente;
 import br.com.vanessa_mudanca.cliente_core.domain.entity.ClientePJ;
+import br.com.vanessa_mudanca.cliente_core.domain.entity.Contato;
+import br.com.vanessa_mudanca.cliente_core.domain.entity.Documento;
+import br.com.vanessa_mudanca.cliente_core.domain.entity.Endereco;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Mapper para conversão entre DTOs e Entity de Cliente Pessoa Jurídica.
@@ -99,7 +107,66 @@ public class ClientePJMapper {
                 entity.getObservacoes(),
                 entity.getAtivo(),
                 entity.getDataCriacao(),
-                entity.getDataAtualizacao()
+                entity.getDataAtualizacao(),
+                mapDocumentos(entity.getListaDocumentos()),
+                mapContatos(entity.getListaContatos()),
+                mapEnderecos(entity.getListaEnderecos())
         );
+    }
+
+    private static List<DocumentoResponse> mapDocumentos(List<Documento> documentos) {
+        return documentos.stream()
+                .map(doc -> new DocumentoResponse(
+                        doc.getId(),
+                        doc.getTipoDocumento(),
+                        doc.getNumero(),
+                        doc.getOrgaoEmissor(),
+                        doc.getDataEmissao(),
+                        doc.getDataValidade(),
+                        doc.getObservacoes(),
+                        doc.getStatusDocumento(),
+                        doc.getDocumentoPrincipal(),
+                        doc.getAtivo(),
+                        doc.getDataCriacao(),
+                        doc.getDataAtualizacao()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private static List<ContatoResponse> mapContatos(List<Contato> contatos) {
+        return contatos.stream()
+                .map(contato -> new ContatoResponse(
+                        contato.getId(),
+                        contato.getTipoContato(),
+                        contato.getValor(),
+                        contato.getObservacoes(),
+                        contato.getContatoPrincipal(),
+                        contato.getVerificado(),
+                        contato.getAtivo(),
+                        contato.getDataCriacao(),
+                        contato.getDataAtualizacao()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    private static List<EnderecoResponse> mapEnderecos(List<Endereco> enderecos) {
+        return enderecos.stream()
+                .map(endereco -> new EnderecoResponse(
+                        endereco.getId(),
+                        endereco.getCep(),
+                        endereco.getLogradouro(),
+                        endereco.getNumero(),
+                        endereco.getComplemento(),
+                        endereco.getBairro(),
+                        endereco.getCidade(),
+                        endereco.getEstado(),
+                        endereco.getPais(),
+                        endereco.getTipoEndereco(),
+                        endereco.getEnderecoPrincipal(),
+                        endereco.getAtivo(),
+                        endereco.getDataCriacao(),
+                        endereco.getDataAtualizacao()
+                ))
+                .collect(Collectors.toList());
     }
 }

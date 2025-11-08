@@ -35,6 +35,7 @@ public class DevSecurityConfig {
     @Bean
     public SecurityFilterChain devFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configure(http)) // Habilita CORS
             .csrf(csrf -> csrf.disable())
             // Adiciona filtro que injeta authentication com todas as authorities
             .addFilterBefore(new DevAuthenticationFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)

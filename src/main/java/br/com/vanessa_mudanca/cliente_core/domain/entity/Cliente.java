@@ -161,6 +161,12 @@ public abstract class Cliente {
         this.dataDelecao = LocalDateTime.now();
         this.motivoDelecao = motivo;
         this.usuarioDeletou = usuario;
+
+        // Cliente deletado também deve ser bloqueado
+        this.bloqueado = true;
+        this.motivoBloqueio = "Cliente deletado: " + motivo;
+        this.dataBloqueio = LocalDateTime.now();
+        this.usuarioBloqueou = usuario;
     }
 
     public void restaurar(String usuario) {
@@ -168,10 +174,37 @@ public abstract class Cliente {
         this.dataDelecao = null;
         this.motivoDelecao = null;
         this.usuarioDeletou = null;
+
+        // Limpa bloqueio associado à deleção (apenas se motivo for "Cliente deletado:")
+        if (this.motivoBloqueio != null && this.motivoBloqueio.startsWith("Cliente deletado:")) {
+            this.bloqueado = false;
+            this.motivoBloqueio = null;
+            this.dataBloqueio = null;
+            this.usuarioBloqueou = null;
+        }
     }
 
     public boolean isDeletado() {
         return !this.ativo && this.dataDelecao != null;
+    }
+
+    // Métodos de Bloqueio
+    public void bloquear(String motivo, String usuario) {
+        this.bloqueado = true;
+        this.motivoBloqueio = motivo;
+        this.dataBloqueio = LocalDateTime.now();
+        this.usuarioBloqueou = usuario;
+    }
+
+    public void desbloquear() {
+        this.bloqueado = false;
+        this.motivoBloqueio = null;
+        this.dataBloqueio = null;
+        this.usuarioBloqueou = null;
+    }
+
+    public boolean isBloqueado() {
+        return this.bloqueado != null && this.bloqueado;
     }
 
     // Métodos auxiliares para gerenciar listas

@@ -1,9 +1,13 @@
 package br.com.vanessa_mudanca.cliente_core.infrastructure.controller;
 
+import br.com.vanessa_mudanca.cliente_core.application.dto.input.BloquearClienteRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.CreateClientePFRequest;
 import br.com.vanessa_mudanca.cliente_core.application.dto.input.UpdateClientePFRequest;
+import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFLookupResponse;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.ClientePFResponse;
 import br.com.vanessa_mudanca.cliente_core.application.dto.output.PageResponse;
+import br.com.vanessa_mudanca.cliente_core.infrastructure.logging.LogExecutionTime;
+import br.com.vanessa_mudanca.cliente_core.application.ports.input.BloquearClienteUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.CreateClientePFUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.DeleteClienteUseCase;
 import br.com.vanessa_mudanca.cliente_core.application.ports.input.FindClientePFByCpfUseCase;
@@ -46,6 +50,7 @@ public class ClientePFController {
     private final FindClientePFByCpfUseCase findClientePFByCpfUseCase;
     private final ListClientePFUseCase listClientePFUseCase;
     private final DeleteClienteUseCase deleteClienteUseCase;
+    private final BloquearClienteUseCase bloquearClienteUseCase;
     private final CustomerAccessValidator customerAccessValidator;
 
     public ClientePFController(
@@ -55,6 +60,7 @@ public class ClientePFController {
             FindClientePFByCpfUseCase findClientePFByCpfUseCase,
             ListClientePFUseCase listClientePFUseCase,
             DeleteClienteUseCase deleteClienteUseCase,
+            BloquearClienteUseCase bloquearClienteUseCase,
             CustomerAccessValidator customerAccessValidator) {
         this.createClientePFUseCase = createClientePFUseCase;
         this.updateClientePFUseCase = updateClientePFUseCase;
@@ -62,11 +68,13 @@ public class ClientePFController {
         this.findClientePFByCpfUseCase = findClientePFByCpfUseCase;
         this.listClientePFUseCase = listClientePFUseCase;
         this.deleteClienteUseCase = deleteClienteUseCase;
+        this.bloquearClienteUseCase = bloquearClienteUseCase;
         this.customerAccessValidator = customerAccessValidator;
     }
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
+    @LogExecutionTime(layer = LogExecutionTime.Layer.CONTROLLER)
     @Operation(summary = "Criar cliente PF", description = "Cria um novo cliente pessoa física. Requer role ADMIN ou EMPLOYEE.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Cliente criado com sucesso"),
@@ -101,25 +109,38 @@ public class ClientePFController {
 
     @GetMapping("/cpf/{cpf}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE', 'CUSTOMER', 'SERVICE')")
-    @Operation(summary = "Buscar cliente PF por CPF",
-               description = "Retorna um cliente pessoa física pelo CPF. Permite descobrir o UUID público através do CPF. Aceita CPF formatado (123.456.789-10) ou apenas números (12345678910). Requer autenticação. CUSTOMER vê apenas próprio cadastro.")
+    @Operation(summary = "Buscar cliente PF por CPF (dados reduzidos)",
+               description = "Retorna dados reduzidos de um cliente pessoa física pelo CPF (apenas primeiroNome, sobrenome e publicId). " +
+                           "Permite descobrir o UUID público através do CPF para posterior busca completa via GET /v1/clientes/pf/{publicId}. " +
+                           "Aceita CPF formatado (123.456.789-10) ou apenas números (12345678910). " +
+                           "Requer autenticação. CUSTOMER vê apenas próprio cadastro. " +
+                           "Segue princípio de minimização de dados (LGPD).")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+            @ApiResponse(responseCode = "200", description = "Cliente encontrado",
+                        content = @Content(schema = @Schema(implementation = ClientePFLookupResponse.class))),
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado - CUSTOMER tentou acessar dados de outro cliente"),
             @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
-    public ResponseEntity<ClientePFResponse> buscarPorCpf(
+    public ResponseEntity<ClientePFLookupResponse> buscarPorCpf(
             @Parameter(description = "CPF do cliente - aceita formato '123.456.789-10' ou '12345678910'",
                       example = "12345678910") @PathVariable String cpf,
             Authentication authentication) {
 
+        // Busca cliente completo
         ClientePFResponse response = findClientePFByCpfUseCase.findByCpf(cpf);
 
         // Valida se CUSTOMER está tentando acessar apenas próprio cadastro
         customerAccessValidator.validateAccess(response.publicId(), authentication);
 
-        return ResponseEntity.ok(response);
+        // Retorna apenas dados reduzidos (LGPD - minimização de dados)
+        ClientePFLookupResponse lookupResponse = new ClientePFLookupResponse(
+                response.primeiroNome(),
+                response.sobrenome(),
+                response.publicId()
+        );
+
+        return ResponseEntity.ok(lookupResponse);
     }
 
     @GetMapping
@@ -229,6 +250,48 @@ public class ClientePFController {
             @Parameter(description = "Usuário responsável pela restauração", required = true) @RequestParam String usuario) {
 
         deleteClienteUseCase.restaurar(publicId, usuario);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{publicId}/bloquear")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @LogExecutionTime(layer = LogExecutionTime.Layer.CONTROLLER)
+    @Operation(
+            summary = "Bloquear cliente PF",
+            description = "Bloqueia um cliente PF. Cliente bloqueado não pode realizar novas transações. " +
+                    "Registra motivo, data e usuário responsável. APENAS ADMIN pode bloquear."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Cliente bloqueado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - apenas ADMIN pode bloquear"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado"),
+            @ApiResponse(responseCode = "409", description = "Cliente já está bloqueado")
+    })
+    public ResponseEntity<Void> bloquear(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId,
+            @Valid @RequestBody BloquearClienteRequest request) {
+
+        bloquearClienteUseCase.bloquear(publicId, request.motivoBloqueio(), request.usuarioBloqueou());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{publicId}/desbloquear")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @LogExecutionTime(layer = LogExecutionTime.Layer.CONTROLLER)
+    @Operation(
+            summary = "Desbloquear cliente PF",
+            description = "Desbloqueia um cliente PF bloqueado. Remove o bloqueio e limpa os campos relacionados. APENAS ADMIN pode desbloquear."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Cliente desbloqueado com sucesso"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado - apenas ADMIN pode desbloquear"),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
+    })
+    public ResponseEntity<Void> desbloquear(
+            @Parameter(description = "UUID público do cliente") @PathVariable UUID publicId) {
+
+        bloquearClienteUseCase.desbloquear(publicId);
         return ResponseEntity.noContent().build();
     }
 }

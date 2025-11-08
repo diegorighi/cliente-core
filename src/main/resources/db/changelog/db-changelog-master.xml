@@ -332,4 +332,36 @@
         </rollback>
     </changeSet>
 
+    <!-- ========================================== -->
+    <!-- DML: MASSA DE DADOS PARA TESTES STRESS     -->
+    <!-- ========================================== -->
+
+    <changeSet id="009-seed-massa-clientes-pf" author="tech-lead" context="dev,test,stress">
+        <comment>Insere 150 clientes PF para testes de performance e volume (IDs 1001-1150)</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/009-seed-massa-clientes-pf.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM clientes_pf WHERE id BETWEEN 1001 AND 1150;
+            DELETE FROM clientes WHERE id BETWEEN 1001 AND 1150;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="010-seed-massa-clientes-pj" author="tech-lead" context="dev,test,stress">
+        <comment>Insere 50 clientes PJ para testes de performance e volume (IDs 2001-2050)</comment>
+        <sqlFile
+            path="db/changelog/sql/dml/010-seed-massa-clientes-pj.sql"
+            relativeToChangelogFile="false"
+            stripComments="true"
+            splitStatements="true"
+            endDelimiter=";"/>
+        <rollback>
+            DELETE FROM clientes_pj WHERE id BETWEEN 2001 AND 2050;
+            DELETE FROM clientes WHERE id BETWEEN 2001 AND 2050;
+        </rollback>
+    </changeSet>
+
 </databaseChangeLog>

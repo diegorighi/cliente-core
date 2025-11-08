@@ -74,6 +74,9 @@ class ClientePFControllerTest {
     private DeleteClienteUseCase deleteClienteUseCase;
 
     @MockBean
+    private br.com.vanessa_mudanca.cliente_core.application.ports.input.BloquearClienteUseCase bloquearClienteUseCase;
+
+    @MockBean
     private br.com.vanessa_mudanca.cliente_core.infrastructure.security.CustomerAccessValidator customerAccessValidator;
 
     private ObjectMapper objectMapper;
@@ -144,7 +147,10 @@ class ClientePFControllerTest {
                 "Cliente preferencial",
                 true,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                List.of(),
+                List.of(),
+                List.of()
         );
     }
 
@@ -249,34 +255,40 @@ class ClientePFControllerTest {
     }
 
     @Test
-    @DisplayName("GET /v1/clientes/pf/cpf/{cpf} - Deve buscar cliente PF por CPF e retornar 200")
+    @DisplayName("GET /v1/clientes/pf/cpf/{cpf} - Deve buscar cliente PF por CPF e retornar dados reduzidos")
     void deveBuscarClientePorCpfComSucesso() throws Exception {
         // Arrange
         String cpf = "12345678909";
         when(findClientePFByCpfUseCase.findByCpf(cpf))
                 .thenReturn(responseEsperado);
 
-        // Act & Assert
+        // Act & Assert - Verifica que retorna apenas primeiroNome, sobrenome e publicId
         mockMvc.perform(get("/v1/clientes/pf/cpf/{cpf}", cpf)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.cpf").value("12345678909"));
+                .andExpect(jsonPath("$.primeiroNome").value("João"))
+                .andExpect(jsonPath("$.sobrenome").value("Silva"))
+                .andExpect(jsonPath("$.publicId").value(responseEsperado.publicId().toString()))
+                .andExpect(jsonPath("$.cpf").doesNotExist())  // CPF não retorna em lookup
+                .andExpect(jsonPath("$.email").doesNotExist());  // Email não retorna em lookup
     }
 
     @Test
-    @DisplayName("GET /v1/clientes/pf/cpf/{cpf} - Deve aceitar CPF formatado")
+    @DisplayName("GET /v1/clientes/pf/cpf/{cpf} - Deve aceitar CPF formatado e retornar dados reduzidos")
     void deveBuscarClientePorCpfFormatado() throws Exception {
         // Arrange
         String cpfFormatado = "123.456.789-09";
         when(findClientePFByCpfUseCase.findByCpf(cpfFormatado))
                 .thenReturn(responseEsperado);
 
-        // Act & Assert
+        // Act & Assert - Verifica que retorna apenas dados reduzidos
         mockMvc.perform(get("/v1/clientes/pf/cpf/{cpf}", cpfFormatado)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cpf").value("12345678909"));
+                .andExpect(jsonPath("$.primeiroNome").value("João"))
+                .andExpect(jsonPath("$.sobrenome").value("Silva"))
+                .andExpect(jsonPath("$.publicId").value(responseEsperado.publicId().toString()));
     }
 
     @Test
@@ -385,7 +397,10 @@ class ClientePFControllerTest {
                 "Cliente preferencial",
                 true,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                List.of(),
+                List.of(),
+                List.of()
         );
 
         when(updateClientePFUseCase.atualizar(any(UpdateClientePFRequest.class)))

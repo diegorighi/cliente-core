@@ -9,6 +9,7 @@ import br.com.vanessa_mudanca.cliente_core.infrastructure.util.MaskingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class DeleteClienteService implements DeleteClienteUseCase {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"clientes:findById", "clientes:list"}, allEntries = true)
     public void deletar(UUID publicId, String motivo, String usuario) {
         MDC.put("operationType", "DELETE_CLIENTE");
         MDC.put("clientId", publicId.toString());
@@ -83,6 +85,7 @@ public class DeleteClienteService implements DeleteClienteUseCase {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"clientes:findById", "clientes:list"}, allEntries = true)
     public void restaurar(UUID publicId, String usuario) {
         MDC.put("operationType", "RESTAURAR_CLIENTE");
         MDC.put("clientId", publicId.toString());

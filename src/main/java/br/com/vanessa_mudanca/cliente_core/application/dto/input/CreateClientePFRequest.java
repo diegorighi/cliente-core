@@ -3,6 +3,7 @@ package br.com.vanessa_mudanca.cliente_core.application.dto.input;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.OrigemLeadEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.SexoEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
+import br.com.vanessa_mudanca.cliente_core.infrastructure.validation.ValidCpf;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -26,6 +27,7 @@ public record CreateClientePFRequest(
         String sobrenome,
 
         @NotBlank(message = "CPF é obrigatório")
+        @ValidCpf(message = "CPF inválido")
         String cpf,
 
         String rg,

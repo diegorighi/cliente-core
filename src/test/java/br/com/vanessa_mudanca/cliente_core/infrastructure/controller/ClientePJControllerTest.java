@@ -73,6 +73,9 @@ class ClientePJControllerTest {
     private DeleteClienteUseCase deleteClienteUseCase;
 
     @MockBean
+    private br.com.vanessa_mudanca.cliente_core.application.ports.input.BloquearClienteUseCase bloquearClienteUseCase;
+
+    @MockBean
     private br.com.vanessa_mudanca.cliente_core.infrastructure.security.CustomerAccessValidator customerAccessValidator;
 
     private ObjectMapper objectMapper;
@@ -144,7 +147,10 @@ class ClientePJControllerTest {
                 "Cliente corporativo",
                 true,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                List.of(),
+                List.of(),
+                List.of()
         );
     }
 
@@ -250,19 +256,22 @@ class ClientePJControllerTest {
     }
 
     @Test
-    @DisplayName("GET /v1/clientes/pj/cnpj/{cnpj} - Deve buscar cliente PJ por CNPJ e retornar 200")
+    @DisplayName("GET /v1/clientes/pj/cnpj/{cnpj} - Deve buscar cliente PJ por CNPJ e retornar dados reduzidos")
     void deveBuscarClientePorCnpjComSucesso() throws Exception {
         // Arrange
         String cnpj = "11222333000181";
         when(findClientePJByCnpjUseCase.findByCnpj(cnpj))
                 .thenReturn(responseEsperado);
 
-        // Act & Assert
+        // Act & Assert - Verifica que retorna apenas nomeFantasia e publicId
         mockMvc.perform(get("/v1/clientes/pj/cnpj/{cnpj}", cnpj)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.cnpj").value("11222333000181"));
+                .andExpect(jsonPath("$.nomeFantasia").value("XYZ Comércio"))
+                .andExpect(jsonPath("$.publicId").value(responseEsperado.publicId().toString()))
+                .andExpect(jsonPath("$.cnpj").doesNotExist())  // CNPJ não retorna em lookup
+                .andExpect(jsonPath("$.razaoSocial").doesNotExist());  // Razão social não retorna em lookup
     }
 
     @Test
@@ -371,7 +380,10 @@ class ClientePJControllerTest {
                 "Cliente corporativo",
                 true,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                List.of(),
+                List.of(),
+                List.of()
         );
 
         when(updateClientePJUseCase.atualizar(any(UpdateClientePJRequest.class)))

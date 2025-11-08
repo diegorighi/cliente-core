@@ -2,6 +2,8 @@ package br.com.vanessa_mudanca.cliente_core.application.dto.input;
 
 import br.com.vanessa_mudanca.cliente_core.domain.enums.OrigemLeadEnum;
 import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
+import br.com.vanessa_mudanca.cliente_core.infrastructure.validation.ValidCnpj;
+import br.com.vanessa_mudanca.cliente_core.infrastructure.validation.ValidCpf;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,6 +24,7 @@ public record CreateClientePJRequest(
         String nomeFantasia,
 
         @NotBlank(message = "CNPJ é obrigatório")
+        @ValidCnpj(message = "CNPJ inválido")
         String cnpj,
 
         String inscricaoEstadual,
@@ -40,6 +43,7 @@ public record CreateClientePJRequest(
 
         String nomeResponsavel,
 
+        @ValidCpf(message = "CPF do responsável inválido")
         String cpfResponsavel,
 
         String cargoResponsavel,

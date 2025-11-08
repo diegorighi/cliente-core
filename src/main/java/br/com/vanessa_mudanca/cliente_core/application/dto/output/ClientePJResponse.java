@@ -6,6 +6,7 @@ import br.com.vanessa_mudanca.cliente_core.domain.enums.TipoClienteEnum;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -50,6 +51,9 @@ public record ClientePJResponse(
         String observacoes,
         Boolean ativo,
         LocalDateTime dataCriacao,
-        LocalDateTime dataAtualizacao
+        LocalDateTime dataAtualizacao,
+        List<DocumentoResponse> documentos,
+        List<ContatoResponse> contatos,
+        List<EnderecoResponse> enderecos
 ) {
 }

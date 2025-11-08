@@ -93,6 +93,14 @@ management:
       prometheus:
         enabled: true
 
+# CORS Configuration (Production)
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.vanessamudanca.com,https://www.vanessamudanca.com}
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+  max-age: 7200
+
 # Security headers (to be configured in API Gateway/Load Balancer)
 # - X-Content-Type-Options: nosniff
 # - X-Frame-Options: DENY
